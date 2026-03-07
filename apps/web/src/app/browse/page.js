@@ -11,13 +11,18 @@ export const metadata = {
 
 const PAGE_SIZE = 24;
 
-async function getResources({ q, category, contentType, page = 1 }) {
+async function getResources({ q, category, contentType, tag, page = 1 }) {
   const supabase = createServerClient();
   const offset = (page - 1) * PAGE_SIZE;
 
+  // Use inner joins when filtering by tag so only matching resources are returned
+  const selectStr = tag
+    ? '*, categories(name, slug), resource_tags!inner(tags!inner(name))'
+    : '*, categories(name, slug), resource_tags(tags(name))';
+
   let query = supabase
     .from('resources')
-    .select('*, categories(name, slug)', { count: 'exact' })
+    .select(selectStr, { count: 'exact' })
     .eq('status', 'published')
     .order('discovered_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
@@ -31,6 +36,9 @@ async function getResources({ q, category, contentType, page = 1 }) {
   if (contentType) {
     query = query.eq('content_type', contentType);
   }
+  if (tag) {
+    query = query.eq('resource_tags.tags.name', tag);
+  }
 
   const { data, count } = await query;
   return { resources: data || [], total: count || 0 };
@@ -41,9 +49,10 @@ async function BrowseContent({ searchParams }) {
   const q = params.q || '';
   const category = params.category || '';
   const contentType = params.type || '';
+  const tag = params.tag || '';
   const page = parseInt(params.page || '1', 10);
 
-  const { resources, total } = await getResources({ q, category, contentType, page });
+  const { resources, total } = await getResources({ q, category, contentType, tag, page });
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -103,7 +112,7 @@ export default function BrowsePage({ searchParams }) {
         <CategoryNav />
       </div>
 
-      {/* Content type filter */}
+      {/* Content type & tag filters */}
       <div className="flex flex-wrap gap-2 mb-6">
         {['tweet', 'github_repo', 'article', 'thread', 'video'].map(type => (
           <a
@@ -114,6 +123,12 @@ export default function BrowsePage({ searchParams }) {
             {type.replace('_', ' ')}
           </a>
         ))}
+        <a
+          href="/browse?tag=engagement-required"
+          className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs text-amber-700 hover:bg-amber-100 transition-colors"
+        >
+          🔒 DM-gated
+        </a>
       </div>
 
       <Suspense fallback={<div className="text-center py-12 text-[var(--muted)]">Loading...</div>}>

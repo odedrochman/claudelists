@@ -44,6 +44,7 @@ For each bookmark below, return a JSON object with:
 - "summary": 1-2 sentence summary useful for discovering Claude resources (max 200 chars)
 - "category": exactly one of: ${CATEGORIES.map(c => `"${c}"`).join(', ')}
 - "tags": array of 2-5 lowercase hyphenated tags relevant to the Claude ecosystem (e.g. ["claude-code", "mcp-server", "prompt-engineering", "agent-sdk", "claude-md"])
+- IMPORTANT: If the tweet asks users to like, retweet, comment, or follow in order to receive something via DM (engagement-gated content), ALWAYS include the tag "engagement-required" in the tags array
 
 Category guidelines:
 - "MCP Servers": Model Context Protocol servers, MCP integrations, MCP tools

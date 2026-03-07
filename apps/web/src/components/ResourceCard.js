@@ -27,6 +27,8 @@ const TYPE_ICONS = {
 export default function ResourceCard({ resource }) {
   const category = CATEGORIES.find(c => c.name === resource.categories?.name);
   const typeIcon = TYPE_ICONS[resource.content_type] || '🐦';
+  const tags = resource.resource_tags?.map(rt => rt.tags?.name).filter(Boolean) || resource.tags || [];
+  const isEngagementGated = tags.includes('engagement-required');
 
   return (
     <div className="group rounded-lg border border-[var(--border)] p-4 hover:border-[var(--accent)]/50 transition-all hover:shadow-sm">
@@ -41,6 +43,14 @@ export default function ResourceCard({ resource }) {
             >
               {category.icon} {category.name}
             </a>
+          )}
+          {isEngagementGated && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700"
+              title="Requires engagement (like/RT/comment) to receive content via DM"
+            >
+              🔒 DM-gated
+            </span>
           )}
         </div>
         {resource.has_downloadable && (
@@ -75,9 +85,9 @@ export default function ResourceCard({ resource }) {
         <span>{timeAgo(resource.tweet_created_at || resource.discovered_at)}</span>
       </div>
 
-      {resource.tags?.length > 0 && (
+      {tags.filter(t => t !== 'engagement-required').length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
-          {resource.tags.slice(0, 4).map(tag => (
+          {tags.filter(t => t !== 'engagement-required').slice(0, 4).map(tag => (
             <span key={tag} className="text-[10px] rounded bg-[var(--border)] px-1.5 py-0.5 text-[var(--muted)]">
               {tag}
             </span>

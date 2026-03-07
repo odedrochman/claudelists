@@ -8,7 +8,7 @@ async function getLatestResources() {
   const supabase = createServerClient();
   const { data } = await supabase
     .from('resources')
-    .select('*, categories(name, slug)')
+    .select('*, categories(name, slug), resource_tags(tags(name))')
     .eq('status', 'published')
     .order('discovered_at', { ascending: false })
     .limit(12);

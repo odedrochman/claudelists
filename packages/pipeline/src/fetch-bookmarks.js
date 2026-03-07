@@ -10,12 +10,12 @@ const execFileAsync = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(__dirname, '..', 'data');
 const localBird = resolve(__dirname, '..', 'node_modules', '.bin', 'bird');
-const BIRD_BIN = existsSync(localBird) ? localBird : 'bird';
+const rootBird = resolve(__dirname, '..', '..', '..', 'node_modules', '.bin', 'bird');
+const BIRD_BIN = existsSync(localBird) ? localBird : existsSync(rootBird) ? rootBird : 'bird';
 
 // ── Bird CLI wrapper ──────────────────────────────────────────────
 
 function loadFreshCookies() {
-  // Auto-load fresh cookies from cookie updater JSON if available
   const cookieFile = process.env.TWITTER_COOKIE_FILE;
   if (cookieFile && existsSync(cookieFile)) {
     try {
@@ -31,7 +31,6 @@ function loadFreshCookies() {
 async function birdCommand(args, envOverrides = {}) {
   const env = { ...process.env, ...envOverrides };
 
-  // Try fresh cookies from file first, fall back to env vars
   const freshCookies = loadFreshCookies();
   if (freshCookies) {
     env.AUTH_TOKEN = freshCookies.auth_token;
@@ -144,14 +143,12 @@ async function extractContent(tweets) {
       const apiData = await extractXArticleInfo(tweet.id);
       if (apiData) {
         tweet._extractedContent = apiData;
-        // Set article URL as primary link
         const articleLink = links.find(l => l.includes('/i/article/'));
         if (articleLink) tweet._articleUrl = articleLink;
       }
     }
 
     for (const link of links) {
-      // Check for downloadable .md files on GitHub
       if (!tweet._markdownContent) {
         tweet._markdownContent = await extractMarkdownFromGitHub(link);
       }
@@ -197,8 +194,9 @@ async function extractXArticleInfo(tweetId) {
 function detectContentType(tweet) {
   const links = (tweet._expandedLinks || []).map(l => l.expanded);
 
-  if (tweet.isThread) return 'thread';
+  // X Articles take priority — bird CLI sometimes mismarks them as threads
   if (links.some(u => u.includes('x.com/i/article/') || u.includes('twitter.com/i/article/'))) return 'x_article';
+  if (tweet.isThread) return 'thread';
   if (links.some(u => u.includes('github.com') && /\/[^/]+\/[^/]+/.test(u))) return 'github_repo';
   if (links.some(u => isArticleDomain(u))) return 'article';
   if (tweet.media?.length > 0) {
@@ -247,7 +245,6 @@ const MD_FILENAMES = ['CLAUDE.md', 'SKILL.md', 'RULES.md', 'SYSTEM.md', 'PROMPT.
 
 async function extractMarkdownFromGitHub(url) {
   try {
-    // Direct .md file link (e.g., github.com/user/repo/blob/main/CLAUDE.md)
     if (url.includes('github.com') && /\.md(\?|#|$)/.test(url)) {
       const rawUrl = url
         .replace('github.com', 'raw.githubusercontent.com')
@@ -255,7 +252,6 @@ async function extractMarkdownFromGitHub(url) {
       return await fetchRawContent(rawUrl);
     }
 
-    // Repository root - check for known .md files
     const repoMatch = url.match(/github\.com\/([^/]+)\/([^/\s?#]+)\/?$/);
     if (repoMatch) {
       const [, owner, repo] = repoMatch;
@@ -263,7 +259,6 @@ async function extractMarkdownFromGitHub(url) {
         const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${filename}`;
         const content = await fetchRawContent(rawUrl);
         if (content) return content;
-        // Try master branch too
         const masterUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/${filename}`;
         const masterContent = await fetchRawContent(masterUrl);
         if (masterContent) return masterContent;
@@ -284,7 +279,6 @@ async function fetchRawContent(url) {
     });
     if (!resp.ok) return null;
     const text = await resp.text();
-    // Only return if it looks like actual markdown content (not HTML error pages)
     if (text.length > 10 && text.length < 500_000 && !text.startsWith('<!DOCTYPE')) {
       return text;
     }
@@ -429,5 +423,4 @@ export async function fetchAndEnrich(options = {}) {
   return tweets;
 }
 
-// Export bird command for use by auto-poster
 export { birdCommand };

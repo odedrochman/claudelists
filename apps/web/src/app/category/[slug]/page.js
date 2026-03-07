@@ -21,7 +21,7 @@ async function getCategoryResources(slug) {
   const supabase = createServerClient();
   const { data } = await supabase
     .from('resources')
-    .select('*, categories!inner(name, slug)')
+    .select('*, categories!inner(name, slug), resource_tags(tags(name))')
     .eq('categories.slug', slug)
     .eq('status', 'published')
     .order('discovered_at', { ascending: false })
