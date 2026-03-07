@@ -97,7 +97,21 @@ async function BrowseContent({ searchParams }) {
   );
 }
 
-export default function BrowsePage({ searchParams }) {
+function buildFilterHref(currentParams, key, value) {
+  const params = new URLSearchParams();
+  // Preserve existing filters except the one being toggled and reset page
+  if (currentParams?.type && key !== 'type') params.set('type', currentParams.type);
+  if (currentParams?.tag && key !== 'tag') params.set('tag', currentParams.tag);
+  if (currentParams?.q) params.set('q', currentParams.q);
+  if (currentParams?.category) params.set('category', currentParams.category);
+  // Toggle: if already active, remove it; otherwise set it
+  if (currentParams?.[key] !== value) params.set(key, value);
+  const qs = params.toString();
+  return `/browse${qs ? `?${qs}` : ''}`;
+}
+
+export default async function BrowsePage({ searchParams }) {
+  const params = await searchParams;
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-2xl font-bold mb-6">Browse Resources</h1>
@@ -117,15 +131,23 @@ export default function BrowsePage({ searchParams }) {
         {['tweet', 'github_repo', 'article', 'thread', 'video'].map(type => (
           <a
             key={type}
-            href={`/browse?type=${type}`}
-            className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)] transition-colors"
+            href={buildFilterHref(params, 'type', type)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              params?.type === type
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
           >
             {type.replace('_', ' ')}
           </a>
         ))}
         <a
-          href="/browse?tag=engagement-required"
-          className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs text-amber-700 hover:bg-amber-100 transition-colors"
+          href={buildFilterHref(params, 'tag', 'engagement-required')}
+          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            params?.tag === 'engagement-required'
+              ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+              : 'border-[var(--border)] text-[var(--muted)] hover:border-amber-300 hover:text-amber-700'
+          }`}
         >
           🔒 DM-gated
         </a>

@@ -17,24 +17,42 @@ export async function generateMetadata({ params }) {
   };
 }
 
-async function getCategoryResources(slug) {
+async function getCategoryResources(slug, { contentType, tag } = {}) {
   const supabase = createServerClient();
-  const { data } = await supabase
+  const selectStr = tag
+    ? '*, categories!inner(name, slug), resource_tags!inner(tags!inner(name))'
+    : '*, categories!inner(name, slug), resource_tags(tags(name))';
+  let query = supabase
     .from('resources')
-    .select('*, categories!inner(name, slug), resource_tags(tags(name))')
+    .select(selectStr)
     .eq('categories.slug', slug)
     .eq('status', 'published')
     .order('discovered_at', { ascending: false })
     .limit(50);
+  if (contentType) query = query.eq('content_type', contentType);
+  if (tag) query = query.eq('resource_tags.tags.name', tag);
+  const { data } = await query;
   return data || [];
 }
 
 export const revalidate = 300;
 
-export default async function CategoryPage({ params }) {
+function buildCategoryFilterHref(slug, currentParams, key, value) {
+  const params = new URLSearchParams();
+  if (currentParams?.type && key !== 'type') params.set('type', currentParams.type);
+  if (currentParams?.tag && key !== 'tag') params.set('tag', currentParams.tag);
+  if (currentParams?.[key] !== value) params.set(key, value);
+  const qs = params.toString();
+  return `/category/${slug}${qs ? `?${qs}` : ''}`;
+}
+
+export default async function CategoryPage({ params, searchParams }) {
   const { slug } = await params;
+  const sp = await searchParams;
   const category = CATEGORIES.find(c => c.slug === slug);
-  const resources = await getCategoryResources(slug);
+  const contentType = sp?.type || '';
+  const tag = sp?.tag || '';
+  const resources = await getCategoryResources(slug, { contentType, tag });
 
   if (!category) {
     return (
@@ -59,6 +77,33 @@ export default async function CategoryPage({ params }) {
 
       <div className="mb-8">
         <CategoryNav activeSlug={slug} />
+      </div>
+
+      {/* Content type & tag filters */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {['tweet', 'github_repo', 'article', 'thread', 'video'].map(type => (
+          <a
+            key={type}
+            href={buildCategoryFilterHref(slug, sp, 'type', type)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              sp?.type === type
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {type.replace('_', ' ')}
+          </a>
+        ))}
+        <a
+          href={buildCategoryFilterHref(slug, sp, 'tag', 'engagement-required')}
+          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            sp?.tag === 'engagement-required'
+              ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+              : 'border-[var(--border)] text-[var(--muted)] hover:border-amber-300 hover:text-amber-700'
+          }`}
+        >
+          🔒 DM-gated
+        </a>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
