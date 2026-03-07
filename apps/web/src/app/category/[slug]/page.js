@@ -17,8 +17,15 @@ export async function generateMetadata({ params }) {
   };
 }
 
-async function getCategoryResources(slug, { contentType, tag } = {}) {
+const SORT_OPTIONS = {
+  score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated' },
+  newest: { column: 'discovered_at', ascending: false, nullsFirst: false, label: 'Newest' },
+  oldest: { column: 'discovered_at', ascending: true, nullsFirst: false, label: 'Oldest' },
+};
+
+async function getCategoryResources(slug, { contentType, tag, sort = 'score' } = {}) {
   const supabase = createServerClient();
+  const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.score;
   const selectStr = tag
     ? '*, categories!inner(name, slug), resource_tags!inner(tags!inner(name))'
     : '*, categories!inner(name, slug), resource_tags(tags(name))';
@@ -27,9 +34,11 @@ async function getCategoryResources(slug, { contentType, tag } = {}) {
     .select(selectStr)
     .eq('categories.slug', slug)
     .eq('status', 'published')
-    .order('ai_quality_score', { ascending: false, nullsFirst: false })
-    .order('discovered_at', { ascending: false })
+    .order(sortOpt.column, { ascending: sortOpt.ascending, nullsFirst: sortOpt.nullsFirst })
     .limit(50);
+  if (sort === 'score') {
+    query = query.order('discovered_at', { ascending: false });
+  }
   if (contentType) query = query.eq('content_type', contentType);
   if (tag) query = query.eq('resource_tags.tags.name', tag);
   const { data } = await query;
@@ -42,6 +51,7 @@ function buildCategoryFilterHref(slug, currentParams, key, value) {
   const params = new URLSearchParams();
   if (currentParams?.type && key !== 'type') params.set('type', currentParams.type);
   if (currentParams?.tag && key !== 'tag') params.set('tag', currentParams.tag);
+  if (currentParams?.sort && key !== 'sort') params.set('sort', currentParams.sort);
   if (currentParams?.[key] !== value) params.set(key, value);
   const qs = params.toString();
   return `/category/${slug}${qs ? `?${qs}` : ''}`;
@@ -53,7 +63,8 @@ export default async function CategoryPage({ params, searchParams }) {
   const category = CATEGORIES.find(c => c.slug === slug);
   const contentType = sp?.type || '';
   const tag = sp?.tag || '';
-  const resources = await getCategoryResources(slug, { contentType, tag });
+  const sort = sp?.sort || 'score';
+  const resources = await getCategoryResources(slug, { contentType, tag, sort });
 
   if (!category) {
     return (
@@ -78,6 +89,24 @@ export default async function CategoryPage({ params, searchParams }) {
 
       <div className="mb-8">
         <CategoryNav activeSlug={slug} />
+      </div>
+
+      {/* Sort options */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xs text-[var(--muted)]">Sort:</span>
+        {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
+          <a
+            key={key}
+            href={buildCategoryFilterHref(slug, sp, 'sort', key)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              (sp?.sort || 'score') === key
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {opt.label}
+          </a>
+        ))}
       </div>
 
       {/* Content type & tag filters */}
