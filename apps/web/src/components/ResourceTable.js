@@ -176,7 +176,7 @@ function ExpandedPanel({ resource }) {
   );
 }
 
-export default function ResourceTable({ resources, currentSort, sortHrefs }) {
+export default function ResourceTable({ resources, currentSort, sortHrefs, compact }) {
   const [expandedId, setExpandedId] = useState(null);
 
   function toggleExpand(id) {
@@ -185,31 +185,36 @@ export default function ResourceTable({ resources, currentSort, sortHrefs }) {
 
   // Determine sort link for date column: toggle between newest/oldest
   const dateSortKey = currentSort === 'newest' ? 'oldest' : 'newest';
+  const hasSortControls = sortHrefs && currentSort;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
       <table className="w-full text-sm text-left">
         <thead>
           <tr className="border-b border-[var(--border)] bg-[var(--surface-alt)]">
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)] w-8"></th>
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)]">Title</th>
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden lg:table-cell">Author</th>
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden lg:table-cell">Category</th>
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden xl:table-cell">Type</th>
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)]">
-              <a href={sortHrefs.score} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
-                Score
-                <SortArrow active={currentSort === 'score'} ascending={false} />
-              </a>
+            <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] w-8"></th>
+            <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)]">Title</th>
+            <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden lg:table-cell">Author</th>
+            <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden lg:table-cell">Category</th>
+            {!compact && <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden xl:table-cell">Type</th>}
+            <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)]">
+              {hasSortControls ? (
+                <a href={sortHrefs.score} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                  Score
+                  <SortArrow active={currentSort === 'score'} ascending={false} />
+                </a>
+              ) : 'Score'}
             </th>
-            <th className="px-4 py-2.5 text-xs font-medium text-[var(--muted)]">
-              <a href={sortHrefs[dateSortKey]} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
-                Date
-                <SortArrow
-                  active={currentSort === 'newest' || currentSort === 'oldest'}
-                  ascending={currentSort === 'oldest'}
-                />
-              </a>
+            <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden sm:table-cell">
+              {hasSortControls ? (
+                <a href={sortHrefs[dateSortKey]} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                  Date
+                  <SortArrow
+                    active={currentSort === 'newest' || currentSort === 'oldest'}
+                    ascending={currentSort === 'oldest'}
+                  />
+                </a>
+              ) : 'Date'}
             </th>
           </tr>
         </thead>
@@ -228,15 +233,15 @@ export default function ResourceTable({ resources, currentSort, sortHrefs }) {
                   }`}
                   onClick={() => toggleExpand(resource.id)}
                 >
-                  <td className="px-4 py-3 text-[var(--muted)]">
+                  <td className="px-2 sm:px-4 py-3 text-[var(--muted)]">
                     <ChevronIcon expanded={isExpanded} />
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-sm leading-snug line-clamp-1">
+                  <td className="px-2 sm:px-4 py-3">
+                    <div className="font-medium text-sm leading-snug line-clamp-2 sm:line-clamp-1">
                       {resource.title}
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
+                  <td className="px-2 sm:px-4 py-3 hidden lg:table-cell">
                     <a
                       href={`https://x.com/${resource.author_handle}`}
                       target="_blank"
@@ -247,7 +252,7 @@ export default function ResourceTable({ resources, currentSort, sortHrefs }) {
                       @{resource.author_handle}
                     </a>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
+                  <td className="px-2 sm:px-4 py-3 hidden lg:table-cell">
                     {category && (
                       <a
                         href={`/category/${category.slug}`}
@@ -259,12 +264,14 @@ export default function ResourceTable({ resources, currentSort, sortHrefs }) {
                       </a>
                     )}
                   </td>
-                  <td className="px-4 py-3 hidden xl:table-cell">
-                    <span className="text-xs text-[var(--muted)]" title={formatContentType(resource.content_type)}>
-                      {typeIcon}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
+                  {!compact && (
+                    <td className="px-2 sm:px-4 py-3 hidden xl:table-cell">
+                      <span className="text-xs text-[var(--muted)]" title={formatContentType(resource.content_type)}>
+                        {typeIcon}
+                      </span>
+                    </td>
+                  )}
+                  <td className="px-2 sm:px-4 py-3">
                     {score && scoreStyle && (
                       <span
                         className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${scoreStyle}`}
@@ -274,13 +281,13 @@ export default function ResourceTable({ resources, currentSort, sortHrefs }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap">
+                  <td className="px-2 sm:px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap hidden sm:table-cell">
                     {timeAgo(resource.tweet_created_at || resource.discovered_at)}
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan={7} className="p-0">
+                    <td colSpan={compact ? 6 : 7} className="p-0">
                       <ExpandedPanel resource={resource} />
                     </td>
                   </tr>

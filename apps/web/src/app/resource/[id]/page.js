@@ -17,6 +17,16 @@ export async function generateMetadata({ params }) {
   return {
     title: `${data.title} - ClaudeLists`,
     description: data.summary,
+    openGraph: {
+      title: data.title,
+      description: data.summary,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: data.title,
+      description: data.summary,
+    },
   };
 }
 

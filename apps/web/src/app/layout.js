@@ -13,6 +13,7 @@ export const metadata = {
     icon: '/favicon.svg',
     apple: '/icon.svg',
   },
+  metadataBase: new URL('https://claudelists.com'),
   openGraph: {
     title: 'ClaudeLists - Curated Claude & AI Resources',
     description: 'The community-curated directory of Claude ecosystem resources. MCP servers, prompts, CLAUDE.md configs, tools, and more.',
@@ -23,6 +24,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     site: '@claudelists',
+    creator: '@claudelists',
   },
 };
 
@@ -62,7 +64,10 @@ export default function RootLayout({ children }) {
                 <a href="/browse" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
                   Browse
                 </a>
-                <a href="/about" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
+                <a href="/submit" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
+                  Submit
+                </a>
+                <a href="/about" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)] hidden sm:block">
                   About
                 </a>
                 <span className="mx-1 h-4 w-px bg-[var(--border)]" />
@@ -99,6 +104,7 @@ export default function RootLayout({ children }) {
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-3">Explore</h3>
                 <ul className="space-y-2 text-sm">
                   <li><a href="/browse" className="text-[var(--foreground)] hover:text-[var(--accent)]">Browse Resources</a></li>
+                  <li><a href="/submit" className="text-[var(--foreground)] hover:text-[var(--accent)]">Submit a Resource</a></li>
                   <li><a href="/about" className="text-[var(--foreground)] hover:text-[var(--accent)]">Why ClaudeLists</a></li>
                 </ul>
               </div>
