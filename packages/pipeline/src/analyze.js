@@ -45,6 +45,14 @@ For each bookmark below, return a JSON object with:
 - "category": exactly one of: ${CATEGORIES.map(c => `"${c}"`).join(', ')}
 - "tags": array of 2-5 lowercase hyphenated tags relevant to the Claude ecosystem (e.g. ["claude-code", "mcp-server", "prompt-engineering", "agent-sdk", "claude-md"])
 - IMPORTANT: If the tweet asks users to like, retweet, comment, or follow in order to receive something via DM (engagement-gated content), ALWAYS include the tag "engagement-required" in the tags array
+- "ai_quality_score": integer 1-10 rating the resource's quality and usefulness to Claude/Anthropic developers:
+  1-3: Low value — vague, promotional, no actionable content, just a link with no context
+  4-5: Below average — common knowledge, thin content, or low-effort share
+  6: Decent — useful but nothing special, standard tip or announcement
+  7: Good — specific, actionable, teaches something concrete
+  8: Very good — detailed, well-explained, covers a non-obvious topic
+  9: Excellent — comprehensive guide, unique insight, or significant tool/project
+  10: Exceptional — reference-quality resource that developers will bookmark and share
 
 Category guidelines:
 - "MCP Servers": Model Context Protocol servers, MCP integrations, MCP tools
@@ -94,6 +102,7 @@ async function analyzeBatch(batch, retries = 2) {
           summary: 'Analysis failed - review manually',
           category: 'Discussion & Opinion',
           tags: [],
+          ai_quality_score: 5,
         }));
       }
     }
@@ -136,6 +145,7 @@ export async function analyzeBookmarks(enrichedBookmarks, options = {}) {
           summary: result.summary,
           category: result.category,
           tags: result.tags || [],
+          ai_quality_score: Math.min(10, Math.max(1, result.ai_quality_score || 5)),
         });
       }
     }

@@ -135,6 +135,7 @@ function buildResourceRow(bookmark, categoryId) {
     has_downloadable: !!bookmark._markdownContent,
     markdown_content: bookmark._markdownContent || null,
     tweet_created_at: bookmark.createdAt || null,
+    ai_quality_score: bookmark.ai_quality_score || null,
     status: 'published',
   };
 }

@@ -10,6 +10,7 @@ async function getLatestResources() {
     .from('resources')
     .select('*, categories(name, slug), resource_tags(tags(name))')
     .eq('status', 'published')
+    .order('ai_quality_score', { ascending: false, nullsFirst: false })
     .order('discovered_at', { ascending: false })
     .limit(12);
   return data || [];

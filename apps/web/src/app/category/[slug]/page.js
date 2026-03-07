@@ -27,6 +27,7 @@ async function getCategoryResources(slug, { contentType, tag } = {}) {
     .select(selectStr)
     .eq('categories.slug', slug)
     .eq('status', 'published')
+    .order('ai_quality_score', { ascending: false, nullsFirst: false })
     .order('discovered_at', { ascending: false })
     .limit(50);
   if (contentType) query = query.eq('content_type', contentType);

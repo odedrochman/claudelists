@@ -11,9 +11,16 @@ export const metadata = {
 
 const PAGE_SIZE = 24;
 
-async function getResources({ q, category, contentType, tag, page = 1 }) {
+const SORT_OPTIONS = {
+  score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated' },
+  newest: { column: 'discovered_at', ascending: false, nullsFirst: false, label: 'Newest' },
+  oldest: { column: 'discovered_at', ascending: true, nullsFirst: false, label: 'Oldest' },
+};
+
+async function getResources({ q, category, contentType, tag, sort = 'score', page = 1 }) {
   const supabase = createServerClient();
   const offset = (page - 1) * PAGE_SIZE;
+  const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.score;
 
   // Use inner joins when filtering by tag so only matching resources are returned
   const selectStr = tag
@@ -24,8 +31,13 @@ async function getResources({ q, category, contentType, tag, page = 1 }) {
     .from('resources')
     .select(selectStr, { count: 'exact' })
     .eq('status', 'published')
-    .order('discovered_at', { ascending: false })
+    .order(sortOpt.column, { ascending: sortOpt.ascending, nullsFirst: sortOpt.nullsFirst })
     .range(offset, offset + PAGE_SIZE - 1);
+
+  // Secondary sort: when primary is score, break ties by recency
+  if (sort === 'score') {
+    query = query.order('discovered_at', { ascending: false });
+  }
 
   if (q) {
     query = query.textSearch('fts', q, { type: 'websearch' });
@@ -50,9 +62,10 @@ async function BrowseContent({ searchParams }) {
   const category = params.category || '';
   const contentType = params.type || '';
   const tag = params.tag || '';
+  const sort = params.sort || 'score';
   const page = parseInt(params.page || '1', 10);
 
-  const { resources, total } = await getResources({ q, category, contentType, tag, page });
+  const { resources, total } = await getResources({ q, category, contentType, tag, sort, page });
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -104,6 +117,7 @@ function buildFilterHref(currentParams, key, value) {
   if (currentParams?.tag && key !== 'tag') params.set('tag', currentParams.tag);
   if (currentParams?.q) params.set('q', currentParams.q);
   if (currentParams?.category) params.set('category', currentParams.category);
+  if (currentParams?.sort && key !== 'sort') params.set('sort', currentParams.sort);
   // Toggle: if already active, remove it; otherwise set it
   if (currentParams?.[key] !== value) params.set(key, value);
   const qs = params.toString();
@@ -124,6 +138,24 @@ export default async function BrowsePage({ searchParams }) {
 
       <div className="mb-8">
         <CategoryNav />
+      </div>
+
+      {/* Sort options */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xs text-[var(--muted)]">Sort:</span>
+        {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
+          <a
+            key={key}
+            href={buildFilterHref(params, 'sort', key)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              (params?.sort || 'score') === key
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {opt.label}
+          </a>
+        ))}
       </div>
 
       {/* Content type & tag filters */}
