@@ -1,0 +1,21 @@
+{
+  "name": "@claudelists/pipeline",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Twitter bookmarks → Claude analysis → Supabase pipeline",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "fetch": "node src/index.js --step fetch",
+    "analyze": "node src/index.js --step analyze",
+    "push": "node src/index.js --step push",
+    "post": "node src/index.js --step post"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@steipete/bird": "^0.8.0",
+    "@supabase/supabase-js": "^2.49.0",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1"
+  }
+}

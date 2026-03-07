@@ -1,0 +1,19 @@
+{
+  "name": "claudelists",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ClaudeLists.com - Curated Claude & AI Resources",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "pipeline": "node packages/pipeline/src/index.js",
+    "pipeline:fetch": "node packages/pipeline/src/index.js --step fetch",
+    "pipeline:analyze": "node packages/pipeline/src/index.js --step analyze",
+    "pipeline:push": "node packages/pipeline/src/index.js --step push",
+    "pipeline:post": "node packages/pipeline/src/index.js --step post",
+    "dev": "npm run dev -w apps/web"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.local
+packages/pipeline/data/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+.DS_Store
