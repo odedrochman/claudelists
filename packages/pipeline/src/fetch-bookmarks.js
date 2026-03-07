@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { fetchTweet } from './twitter-client.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -13,10 +14,32 @@ const BIRD_BIN = existsSync(localBird) ? localBird : 'bird';
 
 // ── Bird CLI wrapper ──────────────────────────────────────────────
 
+function loadFreshCookies() {
+  // Auto-load fresh cookies from cookie updater JSON if available
+  const cookieFile = process.env.TWITTER_COOKIE_FILE;
+  if (cookieFile && existsSync(cookieFile)) {
+    try {
+      const cookies = JSON.parse(readFileSync(cookieFile, 'utf-8'));
+      if (cookies.auth_token && cookies.ct0) {
+        return { auth_token: cookies.auth_token, ct0: cookies.ct0 };
+      }
+    } catch { /* fall through to env vars */ }
+  }
+  return null;
+}
+
 async function birdCommand(args, envOverrides = {}) {
   const env = { ...process.env, ...envOverrides };
-  if (env.TWITTER_AUTH_TOKEN) env.AUTH_TOKEN = env.TWITTER_AUTH_TOKEN;
-  if (env.TWITTER_CT0) env.CT0 = env.TWITTER_CT0;
+
+  // Try fresh cookies from file first, fall back to env vars
+  const freshCookies = loadFreshCookies();
+  if (freshCookies) {
+    env.AUTH_TOKEN = freshCookies.auth_token;
+    env.CT0 = freshCookies.ct0;
+  } else {
+    if (env.TWITTER_AUTH_TOKEN) env.AUTH_TOKEN = env.TWITTER_AUTH_TOKEN;
+    if (env.TWITTER_CT0) env.CT0 = env.TWITTER_CT0;
+  }
 
   const { stdout } = await execFileAsync(BIRD_BIN, args, {
     maxBuffer: 100 * 1024 * 1024,
@@ -116,6 +139,17 @@ async function extractContent(tweets) {
 
     const links = (tweet._expandedLinks || []).map(l => l.expanded);
 
+    // X Articles: use Twitter API to get the article title
+    if (tweet._contentType === 'x_article') {
+      const apiData = await extractXArticleInfo(tweet.id);
+      if (apiData) {
+        tweet._extractedContent = apiData;
+        // Set article URL as primary link
+        const articleLink = links.find(l => l.includes('/i/article/'));
+        if (articleLink) tweet._articleUrl = articleLink;
+      }
+    }
+
     for (const link of links) {
       // Check for downloadable .md files on GitHub
       if (!tweet._markdownContent) {
@@ -136,10 +170,35 @@ async function extractContent(tweets) {
   return tweets;
 }
 
+// ── X Article extraction via Twitter API ──────────────────────────
+
+async function extractXArticleInfo(tweetId) {
+  try {
+    const result = await fetchTweet(tweetId);
+    if (!result?.data) return null;
+
+    const article = result.data.article;
+    const author = result.includes?.users?.[0];
+    const metrics = result.data.public_metrics;
+
+    return {
+      title: article?.title || null,
+      description: null,
+      author: author?.username || null,
+      authorName: author?.name || null,
+      metrics: metrics || null,
+    };
+  } catch (e) {
+    console.warn(`  Failed to extract X Article info for tweet ${tweetId}:`, e.message);
+    return null;
+  }
+}
+
 function detectContentType(tweet) {
   const links = (tweet._expandedLinks || []).map(l => l.expanded);
 
   if (tweet.isThread) return 'thread';
+  if (links.some(u => u.includes('x.com/i/article/') || u.includes('twitter.com/i/article/'))) return 'x_article';
   if (links.some(u => u.includes('github.com') && /\/[^/]+\/[^/]+/.test(u))) return 'github_repo';
   if (links.some(u => isArticleDomain(u))) return 'article';
   if (tweet.media?.length > 0) {

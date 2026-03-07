@@ -3,7 +3,7 @@ config({ override: true });
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
-import { birdCommand } from './fetch-bookmarks.js';
+import { postTweet } from './twitter-client.js';
 
 const anthropic = new Anthropic();
 const supabase = createClient(
@@ -11,16 +11,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const MAX_TWEET_LENGTH = 280;
-
 // ── Fetch un-posted resources ────────────────────────────────────
 
-async function getUnpostedResources(limit = 5) {
+async function getUnpostedResources(limit = 20) {
   const { data, error } = await supabase
     .from('resources')
     .select(`
       id, title, summary, tweet_url, author_handle,
       content_type, primary_url, has_downloadable,
+      engagement,
       categories ( name, slug )
     `)
     .eq('posted_to_twitter', false)
@@ -32,82 +31,66 @@ async function getUnpostedResources(limit = 5) {
   return data || [];
 }
 
-// ── Generate tweet via Claude ────────────────────────────────────
+// ── Generate long-form post via Claude ───────────────────────────
 
-async function generateTweet(resources) {
+async function generateLongPost(resources) {
   const resourceList = resources.map(r => ({
     title: r.title,
     summary: r.summary,
     category: r.categories?.name || 'Unknown',
-    author: r.author_handle,
+    author: r.author_handle ? `@${r.author_handle}` : null,
     url: r.primary_url || r.tweet_url,
     hasDownload: r.has_downloadable,
+    contentType: r.content_type,
+    engagement: r.engagement,
   }));
 
-  const prompt = `You write tweets for @claudelists, a curated directory of Claude ecosystem resources.
+  // Group by category for better structure
+  const byCategory = {};
+  for (const r of resourceList) {
+    if (!byCategory[r.category]) byCategory[r.category] = [];
+    byCategory[r.category].push(r);
+  }
 
-Generate a tweet thread (1-3 tweets) highlighting these newly discovered resources:
+  const prompt = `You write long-form Twitter posts for @claudelists, a curated directory of Claude & AI ecosystem resources at claudelists.com.
+
+Generate a SINGLE long-form Twitter post (Twitter Premium allows up to 4000 characters) that announces these newly discovered resources:
 
 ${JSON.stringify(resourceList, null, 2)}
 
-Rules:
-- Each tweet must be under ${MAX_TWEET_LENGTH} characters
-- First tweet: engaging hook about what's new + 1-2 highlights
-- Credit original authors with @mentions when possible
-- Include 2-3 relevant hashtags from: #Claude #ClaudeCode #MCP #AI #AnthropicAI #AITools #LLM #AgentSDK
-- Last tweet MUST end with: "Tag @claudelists with Claude resources you discover! 🔍"
-- Use emojis sparingly (1-2 per tweet max)
-- Link to claudelists.com for browsing all resources
-- If a resource has a downloadable .md file, mention it's available for download
-- Be concise, informative, not hype-y
+Grouped by category:
+${JSON.stringify(byCategory, null, 2)}
 
-Return ONLY a JSON array of tweet strings. No markdown fences, no explanation.`;
+Rules:
+- Start with a compelling hook line about what's new (e.g., "🆕 ${resources.length} new Claude resources just dropped on ClaudeLists.com")
+- Organize by category with clear section headers using emoji
+- For each resource: one line with title + brief why it matters + @mention of original author
+- Tag ALL original authors with @mentions — this is critical for engagement
+- End with a call-to-action: visit claudelists.com and tag @claudelists with Claude resources
+- Add 3-5 relevant hashtags at the end from: #Claude #ClaudeCode #MCP #AI #AnthropicAI #AITools #LLM #AgentSDK #Anthropic
+- Keep it scannable — use line breaks, emojis for section headers, bullet-style formatting
+- If a resource has a downloadable .md file, mention it briefly
+- Be informative and community-oriented, not hype-y
+- Stay under 4000 characters total (Twitter Premium long post limit)
+- Do NOT use markdown formatting (no **, no ##, no []()) — just plain text with emojis and line breaks
+
+Return ONLY the post text. No JSON, no markdown fences, no explanation.`;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const text = response.content[0].text.trim();
-  const json = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(json);
+  return response.content[0].text.trim();
 }
 
-// ── Post tweet thread via bird CLI ───────────────────────────────
+// ── Post tweet via Twitter API ───────────────────────────────────
 
-async function postTweetThread(tweets) {
-  const env = {
-    TWITTER_AUTH_TOKEN: process.env.CL_TWITTER_AUTH_TOKEN,
-    TWITTER_CT0: process.env.CL_TWITTER_CT0,
-  };
-
-  let lastTweetId = null;
-  const postedTweets = [];
-
-  for (const tweet of tweets) {
-    const args = ['tweet', tweet];
-    if (lastTweetId) {
-      args.push('--reply-to', lastTweetId);
-    }
-
-    const output = await birdCommand(args, env);
-
-    // Try to extract tweet ID from output
-    const idMatch = output.match(/(\d{15,})/);
-    if (idMatch) {
-      lastTweetId = idMatch[1];
-    }
-
-    const urlMatch = output.match(/(https:\/\/(?:twitter\.com|x\.com)\/\S+)/);
-    postedTweets.push({
-      text: tweet,
-      id: lastTweetId,
-      url: urlMatch ? urlMatch[1] : null,
-    });
-  }
-
-  return postedTweets;
+async function postLongTweet(text) {
+  console.log(`Posting tweet (${text.length} chars) via Twitter API...`);
+  const result = await postTweet(text);
+  return result;
 }
 
 // ── Mark resources as posted ─────────────────────────────────────
@@ -128,8 +111,8 @@ async function markAsPosted(resourceIds) {
 
 async function recordAutoPost(tweetData, resourceIds, content) {
   const { error } = await supabase.from('auto_posts').insert({
-    tweet_id: tweetData[0]?.id || null,
-    tweet_url: tweetData[0]?.url || null,
+    tweet_id: tweetData.id || null,
+    tweet_url: tweetData.url || null,
     resource_ids: resourceIds,
     content: content,
     status: 'posted',
@@ -144,37 +127,38 @@ async function recordAutoPost(tweetData, resourceIds, content) {
 // ── Main auto-post function ──────────────────────────────────────
 
 export async function autoPost(options = {}) {
-  const resources = await getUnpostedResources(options.limit || 5);
+  const resources = await getUnpostedResources(options.limit || 20);
 
   if (resources.length === 0) {
     console.log('No new resources to post.');
     return { posted: false, reason: 'no_new_resources' };
   }
 
-  console.log(`Found ${resources.length} un-posted resources. Generating tweet...`);
+  console.log(`Found ${resources.length} un-posted resources. Generating long-form post...`);
 
-  const tweets = await generateTweet(resources);
-  console.log(`Generated ${tweets.length}-tweet thread:`);
-  tweets.forEach((t, i) => console.log(`  [${i + 1}] (${t.length} chars) ${t}`));
+  const postText = await generateLongPost(resources);
+  console.log(`Generated post (${postText.length} chars):`);
+  console.log('─'.repeat(60));
+  console.log(postText);
+  console.log('─'.repeat(60));
 
   if (options.dryRun) {
-    console.log('[DRY RUN] Would post the above thread.');
-    return { posted: false, reason: 'dry_run', tweets };
+    console.log('[DRY RUN] Would post the above.');
+    return { posted: false, reason: 'dry_run', text: postText };
   }
 
-  // Check for @claudelists posting credentials
-  if (!process.env.CL_TWITTER_AUTH_TOKEN || !process.env.CL_TWITTER_CT0) {
-    console.warn('Missing CL_TWITTER_AUTH_TOKEN or CL_TWITTER_CT0. Cannot post.');
-    return { posted: false, reason: 'missing_credentials', tweets };
+  // Verify we have Twitter API credentials
+  if (!process.env.TWITTER_API_KEY || !process.env.TWITTER_ACCESS_TOKEN) {
+    console.warn('Missing Twitter API credentials. Cannot post.');
+    return { posted: false, reason: 'missing_credentials', text: postText };
   }
 
-  console.log('Posting tweet thread...');
-  const postedTweets = await postTweetThread(tweets);
+  const postedTweet = await postLongTweet(postText);
 
   const resourceIds = resources.map(r => r.id);
   await markAsPosted(resourceIds);
-  await recordAutoPost(postedTweets, resourceIds, tweets.join('\n---\n'));
+  await recordAutoPost(postedTweet, resourceIds, postText);
 
-  console.log(`Posted ${postedTweets.length}-tweet thread. First tweet: ${postedTweets[0]?.url || 'unknown'}`);
-  return { posted: true, tweets: postedTweets, resourceCount: resources.length };
+  console.log(`Posted! ${postedTweet.url || 'URL unknown'}`);
+  return { posted: true, tweet: postedTweet, resourceCount: resources.length };
 }

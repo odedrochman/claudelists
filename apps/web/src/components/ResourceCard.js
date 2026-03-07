@@ -72,7 +72,7 @@ export default function ResourceCard({ resource }) {
         >
           @{resource.author_handle}
         </a>
-        <span>{timeAgo(resource.discovered_at)}</span>
+        <span>{timeAgo(resource.tweet_created_at || resource.discovered_at)}</span>
       </div>
 
       {resource.tags?.length > 0 && (

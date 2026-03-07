@@ -85,9 +85,31 @@ async function incrementTagUsage(tagId) {
 // ── Build resource row ───────────────────────────────────────────
 
 function buildResourceRow(bookmark, categoryId) {
-  const primaryUrl = (bookmark._expandedLinks || [])
-    .map(l => l.expanded)
-    .find(u => u && !u.includes('t.co') && !u.includes('twitter.com') && !u.includes('x.com'));
+  // For X Articles, use the article URL; otherwise find first non-twitter link
+  let primaryUrl;
+  if (bookmark._contentType === 'x_article' && bookmark._articleUrl) {
+    primaryUrl = bookmark._articleUrl;
+  } else {
+    primaryUrl = (bookmark._expandedLinks || [])
+      .map(l => l.expanded)
+      .find(u => u && !u.includes('t.co') && !u.includes('twitter.com') && !u.includes('x.com'));
+  }
+
+  // Build engagement — include API metrics if available
+  const apiMetrics = bookmark._extractedContent?.metrics;
+  const engagement = apiMetrics
+    ? {
+        replies: apiMetrics.reply_count || 0,
+        retweets: apiMetrics.retweet_count || 0,
+        likes: apiMetrics.like_count || 0,
+        bookmarks: apiMetrics.bookmark_count || 0,
+        impressions: apiMetrics.impression_count || 0,
+      }
+    : {
+        replies: bookmark.replyCount || 0,
+        retweets: bookmark.retweetCount || 0,
+        likes: bookmark.likeCount || 0,
+      };
 
   return {
     tweet_id: bookmark.id,
@@ -97,17 +119,13 @@ function buildResourceRow(bookmark, categoryId) {
     tweet_url: bookmark.tweetUrl,
     author_handle: bookmark.author || '',
     author_name: bookmark.authorName || '',
-    content_type: bookmark._contentType || 'tweet',
+    content_type: bookmark._contentType === 'x_article' ? 'article' : (bookmark._contentType || 'tweet'),
     category_id: categoryId,
     primary_url: primaryUrl || null,
     expanded_links: (bookmark._expandedLinks || []).map(l => l.expanded),
     extracted_content: bookmark._extractedContent || null,
     media: (bookmark.media || []),
-    engagement: {
-      replies: bookmark.replyCount || 0,
-      retweets: bookmark.retweetCount || 0,
-      likes: bookmark.likeCount || 0,
-    },
+    engagement,
     is_thread: bookmark.isThread || false,
     is_duplicate: bookmark._isDuplicate || false,
     related_tweet_ids: (bookmark._relatedTweets || []).map(r => {
@@ -138,10 +156,30 @@ export async function pushToSupabase(analyzedBookmarks, options = {}) {
 
   const existingIds = new Set((existing || []).map(r => r.tweet_id));
   const newBookmarks = analyzedBookmarks.filter(b => !existingIds.has(b.id));
+  const existingBookmarks = analyzedBookmarks.filter(b => existingIds.has(b.id));
+
+  // Update engagement counts for existing resources
+  if (existingBookmarks.length > 0) {
+    console.log(`Updating engagement for ${existingBookmarks.length} existing resources...`);
+    let updated = 0;
+    for (const bookmark of existingBookmarks) {
+      const engagement = {
+        replies: bookmark.replyCount || 0,
+        retweets: bookmark.retweetCount || 0,
+        likes: bookmark.likeCount || 0,
+      };
+      const { error } = await supabase
+        .from('resources')
+        .update({ engagement })
+        .eq('tweet_id', bookmark.id);
+      if (!error) updated++;
+    }
+    console.log(`  Updated engagement for ${updated}/${existingBookmarks.length} resources`);
+  }
 
   if (newBookmarks.length === 0) {
-    console.log('All bookmarks already in Supabase. Use --force to re-push.');
-    return { inserted: 0, skipped: analyzedBookmarks.length };
+    console.log('No new bookmarks to insert.');
+    return { inserted: 0, updated: existingBookmarks.length, skipped: analyzedBookmarks.length };
   }
 
   console.log(`Pushing ${newBookmarks.length} new resources to Supabase (${existingIds.size} already exist)...`);
