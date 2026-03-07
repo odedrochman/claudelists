@@ -20,10 +20,24 @@ export const TYPE_ICONS = {
   tweet: '\u{1F426}',
 };
 
+export const TYPE_LABELS = {
+  tweet: 'Tweet',
+  github_repo: 'GitHub Repo',
+  article: 'Article',
+  thread: 'Thread',
+  video: 'Video',
+  media: 'Media',
+  x_article: 'Article',
+};
+
+export function formatContentType(type) {
+  return TYPE_LABELS[type] || (type ? type.replace(/_/g, ' ') : 'Resource');
+}
+
 export const SCORE_COLORS = {
-  high: 'text-emerald-600 bg-emerald-50 border-emerald-200',    // 8-10
-  good: 'text-blue-600 bg-blue-50 border-blue-200',             // 6-7
-  mid: 'text-[var(--muted)] bg-[var(--border)]/50 border-[var(--border)]', // 4-5
+  high: 'text-emerald-700 bg-emerald-50 border-emerald-200',    // 8-10
+  good: 'text-[var(--accent)] bg-[var(--accent)]/8 border-[var(--accent)]/20', // 6-7
+  mid: 'text-[var(--muted)] bg-[var(--surface-alt)] border-[var(--border)]',   // 4-5
   low: 'text-orange-600 bg-orange-50 border-orange-200',        // 1-3
 };
 

@@ -7,8 +7,8 @@ export default function CategoryNav({ activeSlug }) {
         href="/browse"
         className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
           !activeSlug
-            ? 'bg-[var(--foreground)] text-[var(--background)]'
-            : 'bg-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]'
+            ? 'bg-[var(--accent)] text-white'
+            : 'bg-[var(--surface-alt)] text-[var(--muted)] hover:text-[var(--foreground)]'
         }`}
       >
         All

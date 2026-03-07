@@ -1,6 +1,6 @@
 import { createServerClient } from '../../../lib/supabase';
 import { CATEGORIES } from '../../../lib/categories';
-import { SORT_OPTIONS } from '../../../lib/resource-utils';
+import { SORT_OPTIONS, formatContentType } from '../../../lib/resource-utils';
 import ResourceCard from '../../../components/ResourceCard';
 import ResourceTable from '../../../components/ResourceTable';
 import ViewToggle from '../../../components/ViewToggle';
@@ -62,7 +62,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const contentType = sp?.type || '';
   const tag = sp?.tag || '';
   const sort = sp?.sort || 'score';
-  const view = sp?.view || 'cards';
+  const view = sp?.view || 'list';
   const resources = await getCategoryResources(slug, { contentType, tag, sort });
 
   if (!category) {
@@ -126,7 +126,7 @@ export default async function CategoryPage({ params, searchParams }) {
                 : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
             }`}
           >
-            {type.replace('_', ' ')}
+            {formatContentType(type)}
           </a>
         ))}
         <a
@@ -137,11 +137,11 @@ export default async function CategoryPage({ params, searchParams }) {
               : 'border-[var(--border)] text-[var(--muted)] hover:border-amber-300 hover:text-amber-700'
           }`}
         >
-          🔒 DM-gated
+          Engagement required
         </a>
       </div>
 
-      {view === 'table' ? (
+      {view === 'list' ? (
         <>
           <div className="hidden md:block">
             <ResourceTable
@@ -169,9 +169,14 @@ export default async function CategoryPage({ params, searchParams }) {
       )}
 
       {resources.length === 0 && (
-        <p className="text-center text-[var(--muted)] py-12">
-          No resources in this category yet.
-        </p>
+        <div className="text-center py-12">
+          <p className="text-[var(--muted)] mb-2">No resources in this category yet.</p>
+          <p className="text-sm text-[var(--muted)]/70">
+            Know a great {category?.name?.toLowerCase() || ''} resource? Tag{' '}
+            <a href="https://x.com/claudelists" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">@claudelists</a>{' '}
+            on X and we&apos;ll add it.
+          </p>
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { createServerClient } from '../../lib/supabase';
-import { SORT_OPTIONS } from '../../lib/resource-utils';
+import { SORT_OPTIONS, formatContentType } from '../../lib/resource-utils';
 import ResourceCard from '../../components/ResourceCard';
 import ResourceTable from '../../components/ResourceTable';
 import ViewToggle from '../../components/ViewToggle';
@@ -61,14 +61,14 @@ async function BrowseContent({ searchParams }) {
   const tag = params.tag || '';
   const sort = params.sort || 'score';
   const page = parseInt(params.page || '1', 10);
-  const view = params.view || 'cards';
+  const view = params.view || 'list';
 
   const { resources, total } = await getResources({ q, category, contentType, tag, sort, page });
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <>
-      {view === 'table' ? (
+      {view === 'list' ? (
         <>
           {/* Table: visible on md+, hidden on mobile */}
           <div className="hidden md:block">
@@ -98,9 +98,12 @@ async function BrowseContent({ searchParams }) {
       )}
 
       {resources.length === 0 && (
-        <p className="text-center text-[var(--muted)] py-12">
-          No resources found. Try a different search or filter.
-        </p>
+        <div className="text-center py-12">
+          <p className="text-[var(--muted)] mb-2">No resources match your filters.</p>
+          <p className="text-sm text-[var(--muted)]/70">
+            Try removing some filters or <a href="/browse" className="text-[var(--accent)] hover:underline">browse all resources</a>.
+          </p>
+        </div>
       )}
 
       {/* Pagination */}
@@ -148,10 +151,10 @@ function buildFilterHref(currentParams, key, value) {
 
 export default async function BrowsePage({ searchParams }) {
   const params = await searchParams;
-  const view = params?.view || 'cards';
+  const view = params?.view || 'list';
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold mb-6">Browse Resources</h1>
+      <h1 className="text-2xl font-bold mb-6">Explore Resources</h1>
 
       <div className="mb-6">
         <Suspense fallback={<div className="h-10" />}>
@@ -199,7 +202,7 @@ export default async function BrowsePage({ searchParams }) {
                 : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
             }`}
           >
-            {type.replace('_', ' ')}
+            {formatContentType(type)}
           </a>
         ))}
         <a
@@ -210,7 +213,7 @@ export default async function BrowsePage({ searchParams }) {
               : 'border-[var(--border)] text-[var(--muted)] hover:border-amber-300 hover:text-amber-700'
           }`}
         >
-          🔒 DM-gated
+          Engagement required
         </a>
       </div>
 

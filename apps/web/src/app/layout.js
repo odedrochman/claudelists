@@ -1,11 +1,21 @@
 import './globals.css';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 export const metadata = {
   title: 'ClaudeLists - Curated Claude & AI Resources',
-  description: 'Discover MCP servers, prompts, CLAUDE.md configs, tools, and more from the Claude ecosystem.',
+  description: 'The community-curated directory of Claude ecosystem resources. MCP servers, prompts, CLAUDE.md configs, tools, and more.',
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/icon.svg',
+  },
   openGraph: {
     title: 'ClaudeLists - Curated Claude & AI Resources',
-    description: 'Discover MCP servers, prompts, CLAUDE.md configs, tools, and more from the Claude ecosystem.',
+    description: 'The community-curated directory of Claude ecosystem resources. MCP servers, prompts, CLAUDE.md configs, tools, and more.',
     url: 'https://claudelists.com',
     siteName: 'ClaudeLists',
     type: 'website',
@@ -16,27 +26,54 @@ export const metadata = {
   },
 };
 
+function Logo({ className = '' }) {
+  return (
+    <a href="/" className={`flex items-center gap-2.5 group ${className}`}>
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+        <rect width="32" height="32" rx="8" fill="var(--accent)" />
+        <text x="16" y="22" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="700" fontSize="18" fill="#FAF9F5">CL</text>
+      </svg>
+      <span className="font-semibold text-lg tracking-tight">
+        <span className="text-[var(--accent)]">Claude</span>
+        <span className="text-[var(--foreground)]">Lists</span>
+      </span>
+    </a>
+  );
+}
+
+function XIcon({ size = 18 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.className}>
       <body className="min-h-screen antialiased">
-        <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-sm">
+        {/* Header */}
+        <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 items-center justify-between">
-              <a href="/" className="flex items-center gap-2 font-bold text-lg">
-                <span className="text-[var(--accent)]">Claude</span>Lists
-              </a>
-              <div className="flex items-center gap-6">
-                <a href="/browse" className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+            <div className="flex h-14 items-center justify-between">
+              <Logo />
+              <div className="flex items-center gap-1">
+                <a href="/browse" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
                   Browse
                 </a>
+                <a href="/about" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
+                  About
+                </a>
+                <span className="mx-1 h-4 w-px bg-[var(--border)]" />
                 <a
                   href="https://x.com/claudelists"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                  className="rounded-lg p-2 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]"
+                  title="Follow @claudelists on X"
                 >
-                  @claudelists
+                  <XIcon />
                 </a>
               </div>
             </div>
@@ -45,12 +82,53 @@ export default function RootLayout({ children }) {
 
         <main>{children}</main>
 
-        <footer className="border-t border-[var(--border)] mt-16 py-8">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center text-sm text-[var(--muted)]">
-            <p>ClaudeLists.com &mdash; Curated Claude ecosystem resources, updated daily.</p>
-            <p className="mt-1">
-              Tag <a href="https://x.com/claudelists" className="text-[var(--accent)] hover:underline" target="_blank" rel="noopener noreferrer">@claudelists</a> on Twitter with Claude resources!
-            </p>
+        {/* Footer */}
+        <footer className="mt-20 border-t border-[var(--border)]">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 py-10">
+              {/* Brand */}
+              <div>
+                <Logo className="mb-3" />
+                <p className="text-sm text-[var(--muted)] leading-relaxed">
+                  The community-curated directory of Claude ecosystem resources, updated daily.
+                </p>
+              </div>
+
+              {/* Links */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-3">Explore</h3>
+                <ul className="space-y-2 text-sm">
+                  <li><a href="/browse" className="text-[var(--foreground)] hover:text-[var(--accent)]">Browse Resources</a></li>
+                  <li><a href="/about" className="text-[var(--foreground)] hover:text-[var(--accent)]">Why ClaudeLists</a></li>
+                </ul>
+              </div>
+
+              {/* Community */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-3">Community</h3>
+                <p className="text-sm text-[var(--muted)] leading-relaxed mb-3">
+                  Found a useful Claude resource? Tweet about it and tag <a href="https://x.com/claudelists" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">@claudelists</a>. We&apos;ll add it to the directory.
+                </p>
+                <a
+                  href="https://x.com/claudelists"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-[var(--foreground)] hover:text-[var(--accent)]"
+                >
+                  <XIcon size={16} /> @claudelists
+                </a>
+              </div>
+            </div>
+
+            {/* Bottom bar with disclaimer */}
+            <div className="border-t border-[var(--border)] py-6 space-y-2">
+              <p className="text-xs text-[var(--muted)] text-center">
+                &copy; {new Date().getFullYear()} ClaudeLists.com
+              </p>
+              <p className="text-[11px] text-[var(--muted)]/70 text-center max-w-xl mx-auto leading-relaxed">
+                ClaudeLists is an independent community project. Not affiliated with, endorsed by, or associated with Anthropic or Claude.
+              </p>
+            </div>
           </div>
         </footer>
       </body>

@@ -1,7 +1,7 @@
 'use client';
 
 import { CATEGORIES } from '../lib/categories';
-import { timeAgo, TYPE_ICONS, getScoreStyle } from '../lib/resource-utils';
+import { timeAgo, TYPE_ICONS, getScoreStyle, formatContentType } from '../lib/resource-utils';
 
 export default function ResourceCard({ resource }) {
   const category = CATEGORIES.find(c => c.name === resource.categories?.name);
@@ -12,10 +12,10 @@ export default function ResourceCard({ resource }) {
   const scoreStyle = getScoreStyle(score);
 
   return (
-    <div className="group rounded-lg border border-[var(--border)] p-4 hover:border-[var(--accent)]/50 transition-all hover:shadow-sm">
-      <div className="flex items-start justify-between gap-2 mb-2">
+    <div className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 hover:border-[var(--accent)]/40 transition-all hover:shadow-md">
+      <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-          <span>{typeIcon}</span>
+          <span title={formatContentType(resource.content_type)}>{typeIcon}</span>
           {category && (
             <a
               href={`/category/${category.slug}`}
@@ -27,20 +27,23 @@ export default function ResourceCard({ resource }) {
           )}
           {isEngagementGated && (
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700"
-              title="Requires engagement (like/RT/comment) to receive content via DM"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
+              title="This resource requires engagement (like/retweet/comment) to receive content via DM"
             >
-              🔒 DM-gated
+              Engagement required
             </span>
           )}
         </div>
         {resource.has_downloadable && (
           <a
             href={`/api/resources/${resource.id}/download`}
-            className="shrink-0 text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
-            title="Download .md file"
+            className="shrink-0 text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+            title="Download Markdown"
           >
-            ⬇ .md
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M8 2v9M4 8l4 4 4-4M2 14h12" />
+            </svg>
+            .md
           </a>
         )}
       </div>
@@ -59,14 +62,14 @@ export default function ResourceCard({ resource }) {
           href={`https://x.com/${resource.author_handle}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-[var(--foreground)] transition-colors"
+          className="hover:text-[var(--foreground)]"
         >
           @{resource.author_handle}
         </a>
         <div className="flex items-center gap-2">
           {score && scoreStyle && (
             <span
-              className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold ${scoreStyle}`}
+              className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${scoreStyle}`}
               title={`Quality score: ${score}/10`}
             >
               {score}/10
@@ -77,9 +80,9 @@ export default function ResourceCard({ resource }) {
       </div>
 
       {tags.filter(t => t !== 'engagement-required').length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
+        <div className="flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-[var(--border)]">
           {tags.filter(t => t !== 'engagement-required').slice(0, 4).map(tag => (
-            <span key={tag} className="text-[10px] rounded bg-[var(--border)] px-1.5 py-0.5 text-[var(--muted)]">
+            <span key={tag} className="text-[10px] rounded-md bg-[var(--surface-alt)] px-1.5 py-0.5 text-[var(--muted)]">
               {tag}
             </span>
           ))}
