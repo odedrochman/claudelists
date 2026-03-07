@@ -1,47 +1,11 @@
 'use client';
 
 import { CATEGORIES } from '../lib/categories';
-
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  const now = new Date();
-  const date = new Date(dateStr);
-  const seconds = Math.floor((now - date) / 1000);
-
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-const TYPE_ICONS = {
-  github_repo: '📦',
-  article: '📄',
-  thread: '🧵',
-  video: '🎬',
-  media: '🖼️',
-  tweet: '🐦',
-};
-
-const SCORE_COLORS = {
-  high: 'text-emerald-600 bg-emerald-50 border-emerald-200',    // 8-10
-  good: 'text-blue-600 bg-blue-50 border-blue-200',             // 6-7
-  mid: 'text-[var(--muted)] bg-[var(--border)]/50 border-[var(--border)]', // 4-5
-  low: 'text-orange-600 bg-orange-50 border-orange-200',        // 1-3
-};
-
-function getScoreStyle(score) {
-  if (!score) return null;
-  if (score >= 8) return SCORE_COLORS.high;
-  if (score >= 6) return SCORE_COLORS.good;
-  if (score >= 4) return SCORE_COLORS.mid;
-  return SCORE_COLORS.low;
-}
+import { timeAgo, TYPE_ICONS, getScoreStyle } from '../lib/resource-utils';
 
 export default function ResourceCard({ resource }) {
   const category = CATEGORIES.find(c => c.name === resource.categories?.name);
-  const typeIcon = TYPE_ICONS[resource.content_type] || '🐦';
+  const typeIcon = TYPE_ICONS[resource.content_type] || '\u{1F426}';
   const tags = resource.resource_tags?.map(rt => rt.tags?.name).filter(Boolean) || resource.tags || [];
   const isEngagementGated = tags.includes('engagement-required');
   const score = resource.ai_quality_score;

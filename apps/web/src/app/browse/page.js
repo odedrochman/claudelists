@@ -1,6 +1,9 @@
 import { Suspense } from 'react';
 import { createServerClient } from '../../lib/supabase';
+import { SORT_OPTIONS } from '../../lib/resource-utils';
 import ResourceCard from '../../components/ResourceCard';
+import ResourceTable from '../../components/ResourceTable';
+import ViewToggle from '../../components/ViewToggle';
 import SearchBar from '../../components/SearchBar';
 import CategoryNav from '../../components/CategoryNav';
 
@@ -10,12 +13,6 @@ export const metadata = {
 };
 
 const PAGE_SIZE = 24;
-
-const SORT_OPTIONS = {
-  score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated' },
-  newest: { column: 'discovered_at', ascending: false, nullsFirst: false, label: 'Newest' },
-  oldest: { column: 'discovered_at', ascending: true, nullsFirst: false, label: 'Oldest' },
-};
 
 async function getResources({ q, category, contentType, tag, sort = 'score', page = 1 }) {
   const supabase = createServerClient();
@@ -64,17 +61,41 @@ async function BrowseContent({ searchParams }) {
   const tag = params.tag || '';
   const sort = params.sort || 'score';
   const page = parseInt(params.page || '1', 10);
+  const view = params.view || 'cards';
 
   const { resources, total } = await getResources({ q, category, contentType, tag, sort, page });
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {resources.map(resource => (
-          <ResourceCard key={resource.id} resource={resource} />
-        ))}
-      </div>
+      {view === 'table' ? (
+        <>
+          {/* Table: visible on md+, hidden on mobile */}
+          <div className="hidden md:block">
+            <ResourceTable
+              resources={resources}
+              currentSort={sort}
+              sortHrefs={{
+                score: buildFilterHref(params, 'sort', 'score'),
+                newest: buildFilterHref(params, 'sort', 'newest'),
+                oldest: buildFilterHref(params, 'sort', 'oldest'),
+              }}
+            />
+          </div>
+          {/* Fallback cards on mobile */}
+          <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {resources.map(resource => (
+              <ResourceCard key={resource.id} resource={resource} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {resources.map(resource => (
+            <ResourceCard key={resource.id} resource={resource} />
+          ))}
+        </div>
+      )}
 
       {resources.length === 0 && (
         <p className="text-center text-[var(--muted)] py-12">
@@ -118,6 +139,7 @@ function buildFilterHref(currentParams, key, value) {
   if (currentParams?.q) params.set('q', currentParams.q);
   if (currentParams?.category) params.set('category', currentParams.category);
   if (currentParams?.sort && key !== 'sort') params.set('sort', currentParams.sort);
+  if (currentParams?.view && key !== 'view') params.set('view', currentParams.view);
   // Toggle: if already active, remove it; otherwise set it
   if (currentParams?.[key] !== value) params.set(key, value);
   const qs = params.toString();
@@ -126,6 +148,7 @@ function buildFilterHref(currentParams, key, value) {
 
 export default async function BrowsePage({ searchParams }) {
   const params = await searchParams;
+  const view = params?.view || 'cards';
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-2xl font-bold mb-6">Browse Resources</h1>
@@ -140,22 +163,28 @@ export default async function BrowsePage({ searchParams }) {
         <CategoryNav />
       </div>
 
-      {/* Sort options */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-[var(--muted)]">Sort:</span>
-        {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
-          <a
-            key={key}
-            href={buildFilterHref(params, 'sort', key)}
-            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-              (params?.sort || 'score') === key
-                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
-                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            {opt.label}
-          </a>
-        ))}
+      {/* Sort options + view toggle */}
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[var(--muted)]">Sort:</span>
+          {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
+            <a
+              key={key}
+              href={buildFilterHref(params, 'sort', key)}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                (params?.sort || 'score') === key
+                  ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                  : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              {opt.label}
+            </a>
+          ))}
+        </div>
+        <ViewToggle
+          currentView={view}
+          buildViewHref={(v) => buildFilterHref(params, 'view', v)}
+        />
       </div>
 
       {/* Content type & tag filters */}

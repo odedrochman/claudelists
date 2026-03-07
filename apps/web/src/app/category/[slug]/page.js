@@ -1,6 +1,9 @@
 import { createServerClient } from '../../../lib/supabase';
 import { CATEGORIES } from '../../../lib/categories';
+import { SORT_OPTIONS } from '../../../lib/resource-utils';
 import ResourceCard from '../../../components/ResourceCard';
+import ResourceTable from '../../../components/ResourceTable';
+import ViewToggle from '../../../components/ViewToggle';
 import CategoryNav from '../../../components/CategoryNav';
 
 export async function generateStaticParams() {
@@ -16,12 +19,6 @@ export async function generateMetadata({ params }) {
     description: `Browse ${category.name.toLowerCase()} resources in the Claude ecosystem.`,
   };
 }
-
-const SORT_OPTIONS = {
-  score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated' },
-  newest: { column: 'discovered_at', ascending: false, nullsFirst: false, label: 'Newest' },
-  oldest: { column: 'discovered_at', ascending: true, nullsFirst: false, label: 'Oldest' },
-};
 
 async function getCategoryResources(slug, { contentType, tag, sort = 'score' } = {}) {
   const supabase = createServerClient();
@@ -52,6 +49,7 @@ function buildCategoryFilterHref(slug, currentParams, key, value) {
   if (currentParams?.type && key !== 'type') params.set('type', currentParams.type);
   if (currentParams?.tag && key !== 'tag') params.set('tag', currentParams.tag);
   if (currentParams?.sort && key !== 'sort') params.set('sort', currentParams.sort);
+  if (currentParams?.view && key !== 'view') params.set('view', currentParams.view);
   if (currentParams?.[key] !== value) params.set(key, value);
   const qs = params.toString();
   return `/category/${slug}${qs ? `?${qs}` : ''}`;
@@ -64,6 +62,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const contentType = sp?.type || '';
   const tag = sp?.tag || '';
   const sort = sp?.sort || 'score';
+  const view = sp?.view || 'cards';
   const resources = await getCategoryResources(slug, { contentType, tag, sort });
 
   if (!category) {
@@ -91,22 +90,28 @@ export default async function CategoryPage({ params, searchParams }) {
         <CategoryNav activeSlug={slug} />
       </div>
 
-      {/* Sort options */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-[var(--muted)]">Sort:</span>
-        {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
-          <a
-            key={key}
-            href={buildCategoryFilterHref(slug, sp, 'sort', key)}
-            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-              (sp?.sort || 'score') === key
-                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
-                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            {opt.label}
-          </a>
-        ))}
+      {/* Sort options + view toggle */}
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[var(--muted)]">Sort:</span>
+          {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
+            <a
+              key={key}
+              href={buildCategoryFilterHref(slug, sp, 'sort', key)}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                (sp?.sort || 'score') === key
+                  ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                  : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              {opt.label}
+            </a>
+          ))}
+        </div>
+        <ViewToggle
+          currentView={view}
+          buildViewHref={(v) => buildCategoryFilterHref(slug, sp, 'view', v)}
+        />
       </div>
 
       {/* Content type & tag filters */}
@@ -136,11 +141,32 @@ export default async function CategoryPage({ params, searchParams }) {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {resources.map(resource => (
-          <ResourceCard key={resource.id} resource={resource} />
-        ))}
-      </div>
+      {view === 'table' ? (
+        <>
+          <div className="hidden md:block">
+            <ResourceTable
+              resources={resources}
+              currentSort={sort}
+              sortHrefs={{
+                score: buildCategoryFilterHref(slug, sp, 'sort', 'score'),
+                newest: buildCategoryFilterHref(slug, sp, 'sort', 'newest'),
+                oldest: buildCategoryFilterHref(slug, sp, 'sort', 'oldest'),
+              }}
+            />
+          </div>
+          <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {resources.map(resource => (
+              <ResourceCard key={resource.id} resource={resource} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {resources.map(resource => (
+            <ResourceCard key={resource.id} resource={resource} />
+          ))}
+        </div>
+      )}
 
       {resources.length === 0 && (
         <p className="text-center text-[var(--muted)] py-12">
