@@ -7,14 +7,14 @@ import { timeAgo, TYPE_ICONS, getScoreStyle, formatContentType } from '../lib/re
 function SortArrow({ active, ascending }) {
   if (!active) {
     return (
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ml-1 opacity-30">
+      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="ml-1 text-[var(--muted)] opacity-50 group-hover:opacity-80 transition-opacity">
         <path d="M8 3l3 4H5l3-4z" fill="currentColor" />
         <path d="M8 13l3-4H5l3 4z" fill="currentColor" />
       </svg>
     );
   }
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ml-1 text-[var(--accent)]">
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="ml-1 text-[var(--accent)]">
       {ascending
         ? <path d="M8 3l4 5H4l4-5z" fill="currentColor" />
         : <path d="M8 13l4-5H4l4 5z" fill="currentColor" />
@@ -205,6 +205,13 @@ export default function ResourceTable({ resources, currentSort, sortHrefs, compa
   const typeSortKey = currentSort === 'type_asc' ? 'type_desc' : 'type_asc';
   const dateSortKey = currentSort === 'newest' ? 'oldest' : 'newest';
 
+  // Active state for highlighting the sorted column
+  const titleActive = currentSort === 'title_asc' || currentSort === 'title_desc';
+  const authorActive = currentSort === 'author_asc' || currentSort === 'author_desc';
+  const typeActive = currentSort === 'type_asc' || currentSort === 'type_desc';
+  const scoreActive = currentSort === 'score';
+  const dateActive = currentSort === 'newest' || currentSort === 'oldest';
+
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
       <table className="w-full text-sm text-left">
@@ -213,17 +220,17 @@ export default function ResourceTable({ resources, currentSort, sortHrefs, compa
             <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] w-8"></th>
             <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)]">
               {hasSortControls ? (
-                <a href={sortHrefs[titleSortKey]} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                <a href={sortHrefs[titleSortKey]} className={`group inline-flex items-center transition-colors hover:text-[var(--foreground)] ${titleActive ? 'text-[var(--accent)] font-semibold' : ''}`}>
                   Title
-                  <SortArrow active={currentSort === 'title_asc' || currentSort === 'title_desc'} ascending={currentSort === 'title_asc'} />
+                  <SortArrow active={titleActive} ascending={currentSort === 'title_asc'} />
                 </a>
               ) : 'Title'}
             </th>
             <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden lg:table-cell">
               {hasSortControls ? (
-                <a href={sortHrefs[authorSortKey]} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                <a href={sortHrefs[authorSortKey]} className={`group inline-flex items-center transition-colors hover:text-[var(--foreground)] ${authorActive ? 'text-[var(--accent)] font-semibold' : ''}`}>
                   Author
-                  <SortArrow active={currentSort === 'author_asc' || currentSort === 'author_desc'} ascending={currentSort === 'author_asc'} />
+                  <SortArrow active={authorActive} ascending={currentSort === 'author_asc'} />
                 </a>
               ) : 'Author'}
             </th>
@@ -231,29 +238,26 @@ export default function ResourceTable({ resources, currentSort, sortHrefs, compa
             {!compact && (
               <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden xl:table-cell">
                 {hasSortControls ? (
-                  <a href={sortHrefs[typeSortKey]} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                  <a href={sortHrefs[typeSortKey]} className={`group inline-flex items-center transition-colors hover:text-[var(--foreground)] ${typeActive ? 'text-[var(--accent)] font-semibold' : ''}`}>
                     Type
-                    <SortArrow active={currentSort === 'type_asc' || currentSort === 'type_desc'} ascending={currentSort === 'type_asc'} />
+                    <SortArrow active={typeActive} ascending={currentSort === 'type_asc'} />
                   </a>
                 ) : 'Type'}
               </th>
             )}
             <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)]">
               {hasSortControls ? (
-                <a href={sortHrefs.score} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                <a href={sortHrefs.score} className={`group inline-flex items-center transition-colors hover:text-[var(--foreground)] ${scoreActive ? 'text-[var(--accent)] font-semibold' : ''}`}>
                   Score
-                  <SortArrow active={currentSort === 'score'} ascending={false} />
+                  <SortArrow active={scoreActive} ascending={false} />
                 </a>
               ) : 'Score'}
             </th>
             <th className="px-2 sm:px-4 py-2.5 text-xs font-medium text-[var(--muted)] hidden sm:table-cell">
               {hasSortControls ? (
-                <a href={sortHrefs[dateSortKey]} className="inline-flex items-center hover:text-[var(--foreground)] transition-colors">
+                <a href={sortHrefs[dateSortKey]} className={`group inline-flex items-center transition-colors hover:text-[var(--foreground)] ${dateActive ? 'text-[var(--accent)] font-semibold' : ''}`}>
                   Date
-                  <SortArrow
-                    active={currentSort === 'newest' || currentSort === 'oldest'}
-                    ascending={currentSort === 'oldest'}
-                  />
+                  <SortArrow active={dateActive} ascending={currentSort === 'oldest'} />
                 </a>
               ) : 'Date'}
             </th>
