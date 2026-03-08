@@ -5,8 +5,22 @@ import { CATEGORIES } from '../lib/categories';
 import { timeAgo, TYPE_ICONS, getScoreStyle, formatContentType } from '../lib/resource-utils';
 
 function SortArrow({ active, ascending }) {
-  if (!active) return <span className="text-[var(--border)] ml-1">↕</span>;
-  return <span className="text-[var(--accent)] ml-1">{ascending ? '↑' : '↓'}</span>;
+  if (!active) {
+    return (
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ml-1 opacity-30">
+        <path d="M8 3l3 4H5l3-4z" fill="currentColor" />
+        <path d="M8 13l3-4H5l3 4z" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ml-1 text-[var(--accent)]">
+      {ascending
+        ? <path d="M8 3l4 5H4l4-5z" fill="currentColor" />
+        : <path d="M8 13l4-5H4l4 5z" fill="currentColor" />
+      }
+    </svg>
+  );
 }
 
 function ChevronIcon({ expanded }) {

@@ -23,9 +23,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-async function getCategoryResources(slug, { contentType, tag, sort = 'score' } = {}) {
+async function getCategoryResources(slug, { contentType, tag, sort = 'newest' } = {}) {
   const supabase = createServerClient();
-  const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.score;
+  const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.newest;
   const selectStr = tag
     ? '*, categories!inner(name, slug), resource_tags!inner(tags!inner(name))'
     : '*, categories!inner(name, slug), resource_tags(tags(name))';
@@ -67,7 +67,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const category = CATEGORIES.find(c => c.slug === slug);
   const contentType = sp?.type || '';
   const tag = sp?.tag || '';
-  const sort = sp?.sort || 'score';
+  const sort = sp?.sort || 'newest';
   const view = sp?.view || 'list';
   const resources = await getCategoryResources(slug, { contentType, tag, sort });
 
@@ -105,7 +105,7 @@ export default async function CategoryPage({ params, searchParams }) {
               key={key}
               href={buildCategoryFilterHref(slug, sp, 'sort', key)}
               className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                (sp?.sort || 'score') === key
+                (sp?.sort || 'newest') === key
                   ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
                   : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
               }`}

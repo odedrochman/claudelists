@@ -19,10 +19,10 @@ export const metadata = {
 
 const PAGE_SIZE = 24;
 
-async function getResources({ q, category, contentType, tag, sort = 'score', page = 1 }) {
+async function getResources({ q, category, contentType, tag, sort = 'newest', page = 1 }) {
   const supabase = createServerClient();
   const offset = (page - 1) * PAGE_SIZE;
-  const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.score;
+  const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.newest;
 
   // Use inner joins when filtering by tag so only matching resources are returned
   const selectStr = tag
@@ -67,7 +67,7 @@ async function BrowseContent({ searchParams }) {
   const category = params.category || '';
   const contentType = params.type || '';
   const tag = params.tag || '';
-  const sort = params.sort || 'score';
+  const sort = params.sort || 'newest';
   const page = parseInt(params.page || '1', 10);
   const view = params.view || 'list';
 
@@ -189,7 +189,7 @@ export default async function BrowsePage({ searchParams }) {
               key={key}
               href={buildFilterHref(params, 'sort', key)}
               className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                (params?.sort || 'score') === key
+                (params?.sort || 'newest') === key
                   ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
                   : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
               }`}
