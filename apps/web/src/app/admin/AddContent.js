@@ -545,7 +545,20 @@ export default function AddContent({ adminKey }) {
                 <input
                   type="checkbox"
                   checked={outputArticle}
-                  onChange={(e) => setOutputArticle(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setOutputArticle(checked);
+                    if (checked) {
+                      // Auto-fill meta description from summary
+                      if (!metaDescription && summary) {
+                        setMetaDescription(summary.length > 160 ? summary.substring(0, 157) + '...' : summary);
+                      }
+                      // Auto-generate article content if empty
+                      if (!articleContent && preview) {
+                        handleGenerateArticle();
+                      }
+                    }
+                  }}
                   className="mt-0.5 accent-amber-600"
                 />
                 <div>
