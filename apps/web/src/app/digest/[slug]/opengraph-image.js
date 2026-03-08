@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { createServerClient } from '../../../lib/supabase';
+import { createServiceClient } from '../../../lib/supabase';
 
 export const runtime = 'edge';
 export const alt = 'ClaudeLists Digest';
@@ -14,7 +14,7 @@ const TYPE_CONFIG = {
 
 export default async function OGImage({ params }) {
   const { slug } = await params;
-  const supabase = createServerClient();
+  const supabase = createServiceClient();
   const { data: article } = await supabase
     .from('articles')
     .select('title, article_type, og_title, published_at, article_resources ( resource_id )')

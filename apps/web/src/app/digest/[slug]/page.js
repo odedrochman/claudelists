@@ -1,4 +1,4 @@
-import { createServerClient } from '../../../lib/supabase';
+import { createServerClient, createServiceClient } from '../../../lib/supabase';
 import { notFound } from 'next/navigation';
 import { marked } from 'marked';
 import Image from 'next/image';
@@ -20,7 +20,8 @@ const TYPE_COLOR = {
 };
 
 async function getArticle(slug, allowDraft = false) {
-  const supabase = createServerClient();
+  // Draft preview requires service role to bypass RLS (anon can only read published)
+  const supabase = allowDraft ? createServiceClient() : createServerClient();
   let query = supabase
     .from('articles')
     .select(`
