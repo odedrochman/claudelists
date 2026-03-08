@@ -327,6 +327,14 @@ export default function AddContent({ adminKey }) {
                 <p>{results.article.article.title}</p>
                 <p>Slug: {results.article.article.slug}</p>
                 <p>Status: Draft (publish from the Digest tab)</p>
+                <a
+                  href={`/digest/${results.article.article.slug}?preview=true&key=${adminKey}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-2 text-sm font-medium text-amber-800 underline hover:text-amber-900"
+                >
+                  Preview draft &rarr;
+                </a>
               </div>
             </div>
           )}

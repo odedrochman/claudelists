@@ -19,25 +19,35 @@ const TYPE_COLOR = {
   monthly: 'bg-emerald-50 text-emerald-700',
 };
 
-async function getArticle(slug) {
+async function getArticle(slug, allowDraft = false) {
   const supabase = createServerClient();
-  const { data } = await supabase
+  let query = supabase
     .from('articles')
     .select(`
       id, slug, title, article_type, content, meta_description, og_title,
-      published_at, period_start, period_end,
+      status, published_at, period_start, period_end,
       article_resources ( position, resource_id, resources ( title, tweet_url, author_handle ) )
     `)
-    .eq('slug', slug)
-    .eq('status', 'published')
-    .single();
+    .eq('slug', slug);
 
+  if (allowDraft) {
+    query = query.in('status', ['published', 'draft']);
+  } else {
+    query = query.eq('status', 'published');
+  }
+
+  const { data } = await query.single();
   return data;
 }
 
-export async function generateMetadata({ params }) {
+function isAdminPreview(searchParams) {
+  return searchParams?.preview === 'true' && searchParams?.key === process.env.ADMIN_SECRET_KEY;
+}
+
+export async function generateMetadata({ params, searchParams }) {
   const { slug } = await params;
-  const article = await getArticle(slug);
+  const sp = await searchParams;
+  const article = await getArticle(slug, isAdminPreview(sp));
   if (!article) return {};
 
   return {
@@ -63,9 +73,11 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function ArticlePage({ params }) {
+export default async function ArticlePage({ params, searchParams }) {
   const { slug } = await params;
-  const article = await getArticle(slug);
+  const sp = await searchParams;
+  const isDraftPreview = isAdminPreview(sp);
+  const article = await getArticle(slug, isDraftPreview);
 
   if (!article) notFound();
 
@@ -140,6 +152,12 @@ export default async function ArticlePage({ params }) {
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {isDraftPreview && article.status === 'draft' && (
+        <div className="mb-6 rounded-lg border-2 border-amber-400 bg-amber-50 px-4 py-3 text-center">
+          <span className="text-sm font-semibold text-amber-800">DRAFT PREVIEW</span>
+          <span className="ml-2 text-sm text-amber-700">This article is not published yet.</span>
+        </div>
+      )}
       <article className="py-10">
         {/* OG hero image */}
         <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
