@@ -55,7 +55,7 @@ function XIcon({ size = 18 }) {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.className}>
-      <head>
+      <body className="min-h-screen antialiased">
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-RZZG5WVJV7"
           strategy="afterInteractive"
@@ -75,8 +75,6 @@ export default function RootLayout({ children }) {
             });
           `}
         </Script>
-      </head>
-      <body className="min-h-screen antialiased">
         {/* Header */}
         <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

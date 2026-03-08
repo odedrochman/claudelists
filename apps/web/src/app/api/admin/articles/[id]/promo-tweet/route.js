@@ -10,6 +10,25 @@ function checkAdminKey(request) {
   return true;
 }
 
+// Resolve category ID by name, fallback to Discussion & Opinion
+async function resolveCategoryId(supabase, categoryName) {
+  const { data } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('name', categoryName)
+    .single();
+
+  if (data) return data.id;
+
+  const { data: fallback } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('name', 'Discussion & Opinion')
+    .single();
+
+  return fallback?.id;
+}
+
 // Fetch author handles from article resources
 async function getArticleAuthors(supabase, articleId) {
   const { data: articleResources } = await supabase
@@ -169,7 +188,7 @@ export async function POST(request, { params }) {
       const me = await client.v2.me();
       const tweetUrl = `https://x.com/${me.data.username}/status/${tweetId}`;
 
-      // Save to article
+      // Save tweet URL to article
       const { error: updateError } = await supabase
         .from('articles')
         .update({
@@ -182,10 +201,62 @@ export async function POST(request, { params }) {
         console.error('Failed to save tweet URL:', updateError.message);
       }
 
+      // Auto-add to resource list (every tweeted item must be in resource list)
+      let resourceResult = null;
+      try {
+        const digestUrl = `https://claudelists.com/digest/${article.slug}`;
+        const categoryId = await resolveCategoryId(supabase, 'Articles & Tutorials');
+
+        const resourceRow = {
+          tweet_id: tweetId,
+          title: article.title,
+          summary: article.meta_description || '',
+          tweet_text: text,
+          tweet_url: tweetUrl,
+          author_handle: me.data.username,
+          author_name: me.data.username,
+          content_type: 'article',
+          category_id: categoryId,
+          primary_url: digestUrl,
+          expanded_links: [digestUrl],
+          extracted_content: { source: 'promo-tweet', article_id: article.id, slug: article.slug },
+          engagement: { replies: 0, retweets: 0, likes: 0 },
+          is_thread: false,
+          is_duplicate: false,
+          ai_quality_score: 7,
+          posted_to_twitter: true,
+          posted_at: new Date().toISOString(),
+          tweet_created_at: new Date().toISOString(),
+          status: 'published',
+        };
+
+        const { data: resource, error: resourceError } = await supabase
+          .from('resources')
+          .insert(resourceRow)
+          .select('id')
+          .single();
+
+        if (resourceError) {
+          console.error('Failed to auto-add resource:', resourceError.message);
+        } else {
+          resourceResult = { id: resource.id, title: article.title };
+
+          // Link resource to article
+          await supabase.from('article_resources').insert({
+            article_id: article.id,
+            resource_id: resource.id,
+            position: 0,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to auto-add resource:', e.message);
+      }
+
       return NextResponse.json({
         success: true,
         tweetUrl,
         tweetId,
+        resource: resourceResult,
       });
     } catch (e) {
       console.error('Twitter post failed:', e);

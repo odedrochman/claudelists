@@ -261,6 +261,56 @@ async function extractGeneric(url) {
   } catch { return { title: url, content: '', author: null, metadata: {} }; }
 }
 
+async function fetchYouTubeTranscript(videoId) {
+  try {
+    const resp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36' },
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+
+    const playerMatch = html.match(/var ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+    if (!playerMatch) return null;
+
+    const playerData = JSON.parse(playerMatch[1]);
+    const captionTracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!captionTracks || captionTracks.length === 0) return null;
+
+    // Prefer English, fallback to first available
+    const track = captionTracks.find(t => t.languageCode === 'en')
+      || captionTracks.find(t => t.languageCode?.startsWith('en'))
+      || captionTracks[0];
+
+    if (!track?.baseUrl) return null;
+
+    const captionResp = await fetch(track.baseUrl, { signal: AbortSignal.timeout(10_000) });
+    if (!captionResp.ok) return null;
+    const xml = await captionResp.text();
+
+    // Parse XML caption text elements to plain text
+    const textParts = [];
+    const textRegex = /<text[^>]*>([\s\S]*?)<\/text>/g;
+    let match;
+    while ((match = textRegex.exec(xml)) !== null) {
+      let text = match[1]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\n/g, ' ')
+        .trim();
+      if (text) textParts.push(text);
+    }
+
+    const transcript = textParts.join(' ');
+    return transcript.length > 8000 ? transcript.substring(0, 8000) + '...' : transcript;
+  } catch {
+    return null;
+  }
+}
+
 async function extractFromUrl(url) {
   const urlType = detectUrlType(url);
   let extracted;
@@ -271,6 +321,15 @@ async function extractFromUrl(url) {
     case 'hackernews': extracted = await extractHackerNews(url); break;
     default: extracted = await extractGeneric(url);
   }
+
+  // For YouTube videos, attempt to fetch transcript
+  if (urlType === 'youtube' && extracted.metadata?.videoId) {
+    const transcript = await fetchYouTubeTranscript(extracted.metadata.videoId);
+    if (transcript) {
+      extracted.transcript = transcript;
+    }
+  }
+
   return { ...extracted, sourceUrl: url, urlType };
 }
 
@@ -426,6 +485,8 @@ export async function POST(request) {
         source_url: url,
         url_type: extracted.urlType,
         author: extracted.author,
+        transcript: extracted.transcript || null,
+        extracted_content: (extracted.content || '').substring(0, 3000),
       },
     });
   } catch (e) {

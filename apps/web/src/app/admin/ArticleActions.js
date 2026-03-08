@@ -16,6 +16,16 @@ export default function ArticleActions({ article, adminKey }) {
   const [postResult, setPostResult] = useState(null);
   const router = useRouter();
 
+  // Edit state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editMetaDesc, setEditMetaDesc] = useState('');
+  const [editArticleType, setEditArticleType] = useState('daily');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editPreview, setEditPreview] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
   const articleId = article.id;
 
   async function handleAction(action, extra = {}) {
@@ -89,6 +99,73 @@ export default function ArticleActions({ article, adminKey }) {
     }
   }
 
+  function openEditor() {
+    setEditTitle(article.title || '');
+    setEditContent(article.content || '');
+    setEditMetaDesc(article.meta_description || '');
+    setEditArticleType(article.article_type || 'daily');
+    setEditPreview(false);
+    setShowEdit(true);
+  }
+
+  async function handleSaveEdit() {
+    setEditLoading(true);
+    try {
+      const res = await fetch(`/api/admin/articles/${articleId}?key=${adminKey}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          title: editTitle,
+          content: editContent,
+          meta_description: editMetaDesc,
+          article_type: editArticleType,
+        }),
+      });
+
+      if (res.ok) {
+        setShowEdit(false);
+        setDone('Saved');
+        setTimeout(() => { setDone(null); router.refresh(); }, 1500);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to save');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function handleRegenerate() {
+    setRegenerating(true);
+    try {
+      const res = await fetch(`/api/admin/add-content/generate-article?key=${adminKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          summary: '',
+          source_url: '',
+          url_type: 'article',
+          content: '',
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setEditContent(data.content);
+      } else {
+        alert(data.error || 'Failed to regenerate');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   if (done) {
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -120,11 +197,137 @@ export default function ArticleActions({ article, adminKey }) {
         </div>
       )}
 
-      {/* Draft actions: Publish to Site / Reject */}
+      {/* Draft actions: Edit / Publish to Site / Reject */}
       {article.status === 'draft' && (
         <>
-          {!showReject && (
+          {/* Edit panel */}
+          {showEdit && (
+            <div className="flex flex-col gap-4 p-4 bg-[#FAF9F5] rounded-lg border border-[#E0D5C1]">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-[#3D2E1F]">Edit Draft</h4>
+                <button
+                  onClick={() => setShowEdit(false)}
+                  className="text-xs text-[#8B7355] hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-medium text-[#8B7355] mb-1">Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+                />
+              </div>
+
+              {/* Article Type + Meta Description */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#8B7355] mb-1">Type</label>
+                  <select
+                    value={editArticleType}
+                    onChange={(e) => setEditArticleType(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#8B7355] mb-1">Meta Description</label>
+                  <input
+                    type="text"
+                    value={editMetaDesc}
+                    onChange={(e) => setEditMetaDesc(e.target.value)}
+                    maxLength={160}
+                    className="w-full px-3 py-2 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+                  />
+                </div>
+              </div>
+
+              {/* Content */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-[#8B7355]">Content (Markdown)</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRegenerate}
+                      disabled={regenerating}
+                      className="px-3 py-1 bg-[#C15F3C] text-white rounded text-xs font-medium hover:bg-[#A84E31] disabled:opacity-50"
+                    >
+                      {regenerating ? 'Generating...' : 'Regenerate with Claude'}
+                    </button>
+                    {editContent && (
+                      <button
+                        type="button"
+                        onClick={() => setEditPreview(!editPreview)}
+                        className="px-3 py-1 bg-white text-[#5C4A32] border border-[#E0D5C1] rounded text-xs font-medium hover:bg-[#F5F0E8]"
+                      >
+                        {editPreview ? 'Edit' : 'Preview'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {regenerating && (
+                  <div className="text-center py-8 bg-white border border-[#E0D5C1] rounded-lg">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#C15F3C] border-t-transparent mb-2"></div>
+                    <p className="text-xs text-[#8B7355]">Regenerating article with Claude...</p>
+                  </div>
+                )}
+
+                {!regenerating && !editPreview && (
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={12}
+                    className="w-full px-3 py-2 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30 font-mono resize-y"
+                  />
+                )}
+
+                {!regenerating && editPreview && editContent && (
+                  <div
+                    className="w-full px-4 py-3 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm prose prose-sm max-w-none overflow-y-auto"
+                    style={{ maxHeight: '400px' }}
+                    dangerouslySetInnerHTML={{ __html: simpleMarkdownToHtml(editContent) }}
+                  />
+                )}
+              </div>
+
+              {/* Save / Cancel */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={editLoading || !editContent.trim()}
+                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {editLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => setShowEdit(false)}
+                  className="px-3 py-2 text-[#8B7355] text-sm hover:text-[#5C4A32]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!showReject && !showEdit && (
             <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={openEditor}
+                disabled={loading}
+                className="px-4 py-2 bg-[#C15F3C] text-white text-sm font-medium rounded-lg hover:bg-[#A84E31] disabled:opacity-50 transition-colors"
+              >
+                Edit
+              </button>
               <button
                 onClick={() => handleAction('publish_site')}
                 disabled={loading}
@@ -142,7 +345,7 @@ export default function ArticleActions({ article, adminKey }) {
             </div>
           )}
 
-          {showReject && (
+          {showReject && !showEdit && (
             <div className="flex flex-col gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
               <input
                 type="text"
@@ -268,4 +471,27 @@ export default function ArticleActions({ article, adminKey }) {
       )}
     </div>
   );
+}
+
+function simpleMarkdownToHtml(md) {
+  return md
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#f5f0e8;padding:1px 4px;border-radius:3px">$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#C15F3C">$1</a>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^([^<].*)$/gm, '<p>$1</p>')
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<h[123]>)/g, '$1')
+    .replace(/(<\/h[123]>)<\/p>/g, '$1')
+    .replace(/<p>(<ul>)/g, '$1')
+    .replace(/(<\/ul>)<\/p>/g, '$1');
 }

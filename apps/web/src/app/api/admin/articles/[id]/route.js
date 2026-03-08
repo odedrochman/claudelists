@@ -19,8 +19,8 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const { action, notes } = body;
 
-  if (!['publish_site', 'reject'].includes(action)) {
-    return NextResponse.json({ error: 'Action must be publish_site or reject' }, { status: 400 });
+  if (!['publish_site', 'reject', 'update'].includes(action)) {
+    return NextResponse.json({ error: 'Action must be publish_site, reject, or update' }, { status: 400 });
   }
 
   const supabase = createServiceClient();
@@ -34,6 +34,32 @@ export async function PATCH(request, { params }) {
 
   if (fetchError || !article) {
     return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+  }
+
+  // Update draft content
+  if (action === 'update') {
+    if (article.status !== 'draft') {
+      return NextResponse.json({ error: 'Only draft articles can be edited' }, { status: 400 });
+    }
+
+    const { content, title: newTitle, meta_description, article_type } = body;
+    const updates = { updated_at: new Date().toISOString() };
+    if (content !== undefined) updates.content = content;
+    if (newTitle !== undefined) updates.title = newTitle;
+    if (meta_description !== undefined) updates.meta_description = meta_description;
+    if (article_type !== undefined) updates.article_type = article_type;
+
+    const { error: updateError } = await supabase
+      .from('articles')
+      .update(updates)
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('Article update error:', updateError);
+      return NextResponse.json({ error: 'Failed to update article' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, action: 'update' });
   }
 
   // Publish to site (draft -> published)
