@@ -67,11 +67,18 @@ export async function formatPromoTweet(supabase, article, xArticleUrl) {
 
   const lines = [];
 
-  // 1. Title + hook
+  // 1. Title + hook (Persona G: loss aversion + social proof)
   lines.push(article.title);
   lines.push('');
   if (count > 0) {
-    lines.push(`${count} curated picks from the Claude community.`);
+    const hooks = [
+      `${count} resources your timeline already knows about. Catch up.`,
+      `${count} drops the Claude power users found this week. You're behind.`,
+      `The people shipping faster than you found these ${count} resources. Now you can too.`,
+      `${count} picks separating "I use Claude" from "I ship with Claude."`,
+      `Your competitors bookmarked these ${count} resources yesterday. Your move.`,
+    ];
+    lines.push(hooks[Math.floor(Math.random() * hooks.length)]);
   }
 
   // 2. @mentions
