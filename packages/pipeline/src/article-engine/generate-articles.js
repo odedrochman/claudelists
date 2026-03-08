@@ -14,8 +14,6 @@ import {
   generateWeeklySummary,
   generateMonthlySummary,
 } from './article-writer.js';
-import { publishArticle } from './publisher.js';
-import { checkAndPublish } from './scheduler.js';
 import { validateArticle, printValidation } from './quality-checker.js';
 
 // ── Generate a daily article ────────────────────────────────────
@@ -203,20 +201,13 @@ program
   .option('--week <date>', 'Week start date (ISO) for weekly summary')
   .option('--month <month>', 'Month (YYYY-MM) for monthly summary')
   .option('--count <n>', 'Number of resources for daily article (2-5)', parseInt, 5)
-  .option('--dry-run', 'Preview without saving to database', false)
-  .option('--publish <id>', 'Manually publish a specific article by ID')
-  .option('--check-schedule', 'Check for and publish any due scheduled articles', false);
+  .option('--dry-run', 'Preview without saving to database', false);
 
 program.parse();
 const opts = program.opts();
 
 try {
-  if (opts.checkSchedule) {
-    const result = await checkAndPublish();
-    console.log(`\nResult: ${result.published} published, ${result.errors.length} errors`);
-  } else if (opts.publish) {
-    await publishArticle(opts.publish);
-  } else if (opts.type) {
+  if (opts.type) {
     const options = {
       count: Math.max(2, Math.min(5, opts.count)),
       week: opts.week,

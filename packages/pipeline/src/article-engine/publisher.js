@@ -1,3 +1,7 @@
+// DEPRECATED: Tweet thread publisher replaced by unified promo tweet flow.
+// Promo tweets are now posted via admin UI or CLI (publish-long-tweet.js).
+// This file is kept for reference only.
+
 import { config } from 'dotenv';
 config({ override: true });
 

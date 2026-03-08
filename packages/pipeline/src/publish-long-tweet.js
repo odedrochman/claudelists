@@ -8,10 +8,9 @@ config({ override: true });
 config({ path: resolve(__dirname, '../../../apps/web/.env.local'), override: true });
 
 import { createClient } from '@supabase/supabase-js';
-import { writeFile, unlink } from 'fs/promises';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { unlink } from 'fs/promises';
 import { getClients, verifyAuth, uploadMedia } from './twitter-client.js';
+import { getArticleAuthors, downloadOgImage, formatPromoTweet } from './promo-tweet.js';
 
 // ── Supabase client ─────────────────────────────────────────────
 const supabase = createClient(
@@ -84,101 +83,7 @@ function formatForLongTweet(article) {
   return parts.join('\n');
 }
 
-// ── Fetch author handles from article resources ──────────────────
-async function getArticleAuthors(articleId) {
-  const { data: articleResources } = await supabase
-    .from('article_resources')
-    .select('resource_id')
-    .eq('article_id', articleId);
-
-  if (!articleResources || articleResources.length === 0) return [];
-
-  const resourceIds = articleResources.map(ar => ar.resource_id);
-  const { data: resources } = await supabase
-    .from('resources')
-    .select('author_handle')
-    .in('id', resourceIds);
-
-  if (!resources) return [];
-
-  // Deduplicate and filter out nulls/empty, exclude our own handle
-  const handles = [...new Set(
-    resources
-      .map(r => r.author_handle)
-      .filter(h => h && h.toLowerCase() !== 'claudelists')
-  )];
-
-  return handles;
-}
-
-// ── Download OG image to temp file ───────────────────────────────
-async function downloadOgImage(slug) {
-  const ogUrl = `https://claudelists.com/digest/${slug}/opengraph-image`;
-  console.log(`Downloading OG image from ${ogUrl}...`);
-
-  const response = await fetch(ogUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to download OG image: ${response.status} ${response.statusText}`);
-  }
-
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const tempPath = join(tmpdir(), `og-${slug}-${Date.now()}.png`);
-  await writeFile(tempPath, buffer);
-  console.log(`OG image saved to ${tempPath} (${buffer.length} bytes)`);
-  return tempPath;
-}
-
-// ── Generate promo tweet following the checklist ─────────────────
-// Checklist order:
-//   1. Title + catchy hook
-//   2. @mentions of featured creators
-//   3. Website digest link FIRST
-//   4. X Article link SECOND (optional)
-//   5. CTA
-//   6. Hashtags
-async function formatPromoTweet(article, xArticleUrl) {
-  const digestUrl = `https://claudelists.com/digest/${article.slug}`;
-  const authors = await getArticleAuthors(article.id);
-
-  // Count resources
-  const resourceMatches = [...(article.content || '').matchAll(/##\s*\[([^\]]+)\]\(([^)]+)\)/g)];
-  const count = resourceMatches.length;
-
-  const lines = [];
-
-  // 1. Title + hook
-  lines.push(article.title);
-  lines.push('');
-  if (count > 0) {
-    lines.push(`${count} curated picks from the Claude community.`);
-  }
-
-  // 2. @mentions
-  if (authors.length > 0) {
-    lines.push('');
-    lines.push('Featuring ' + authors.map(h => `@${h}`).join(' '));
-  }
-
-  // 3. Website link FIRST (priority for traffic)
-  lines.push('');
-  lines.push(digestUrl);
-
-  // 4. X Article link SECOND (optional)
-  if (xArticleUrl) {
-    lines.push('');
-    lines.push(`Full article: ${xArticleUrl}`);
-  }
-
-  // 5. CTA
-  lines.push('');
-  lines.push('Tag @claudelists to get featured');
-
-  // 6. Hashtags
-  lines.push('');
-  lines.push('#Claude #AI #ClaudeCode');
-
-  return lines.join('\n');
-}
+// getArticleAuthors, downloadOgImage, formatPromoTweet imported from ./promo-tweet.js
 
 // ── Format article content for X Article editor ──────────────────
 // Includes tweet URLs so they can be embedded in the X Article editor
@@ -298,7 +203,7 @@ if (command === 'list') {
     process.exit(1);
   }
 
-  const promo = await formatPromoTweet(article, extraArg);
+  const promo = await formatPromoTweet(supabase, article, extraArg);
 
   console.log('\n' + '='.repeat(60));
   console.log('PROMO TWEET PREVIEW (will attach OG image as media)');
@@ -345,7 +250,7 @@ if (command === 'list') {
     process.exit(1);
   }
 
-  const promo = await formatPromoTweet(article, extraArg);
+  const promo = await formatPromoTweet(supabase, article, extraArg);
 
   console.log('\n' + '='.repeat(60));
   console.log('POSTING PROMO TWEET');

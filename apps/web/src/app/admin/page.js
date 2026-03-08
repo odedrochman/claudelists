@@ -172,9 +172,9 @@ async function ArticlesTab({ supabase, filterStatus, adminKey }) {
   let query = supabase
     .from('articles')
     .select(`
-      id, slug, title, article_type, content, status, scheduled_for,
+      id, slug, title, article_type, content, status,
       published_at, reviewer_notes, meta_description, created_at,
-      thread_url, promo_tweet_url, tweet_thread, promo_tweet,
+      thread_url,
       article_resources ( resource_id )
     `)
     .order('created_at', { ascending: false });
@@ -244,11 +244,6 @@ async function ArticlesTab({ supabase, filterStatus, adminKey }) {
                     <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#8B7355]">
                       <span>{resourceCount} resource{resourceCount !== 1 ? 's' : ''}</span>
                       <span>{new Date(article.created_at).toLocaleDateString()}</span>
-                      {article.scheduled_for && (
-                        <span className="text-blue-600">
-                          Tweets scheduled: {new Date(article.scheduled_for).toLocaleString()}
-                        </span>
-                      )}
                       {article.published_at && (
                         <span className="text-emerald-600">
                           Published: {new Date(article.published_at).toLocaleString()}
@@ -277,7 +272,7 @@ async function ArticlesTab({ supabase, filterStatus, adminKey }) {
                             rel="noopener noreferrer"
                             className="text-[#C15F3C] hover:underline"
                           >
-                            View thread
+                            View promo tweet
                           </a>
                         )}
                       </div>
