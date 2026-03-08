@@ -17,7 +17,7 @@ export const metadata = {
   },
 };
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 100;
 
 async function getResources({ q, category, contentType, tag, sort = 'newest', page = 1 }) {
   const supabase = createServerClient();
