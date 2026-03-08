@@ -16,7 +16,10 @@ export async function generateMetadata({ params }) {
   if (!category) return { title: 'Category - ClaudeLists' };
   return {
     title: `${category.name} - ClaudeLists`,
-    description: `Browse ${category.name.toLowerCase()} resources in the Claude ecosystem.`,
+    description: `Discover community-curated ${category.name.toLowerCase()} for Claude. Browse, compare, and find the best ${category.name.toLowerCase()} in the Claude ecosystem.`,
+    alternates: {
+      canonical: `https://claudelists.com/category/${slug}`,
+    },
   };
 }
 

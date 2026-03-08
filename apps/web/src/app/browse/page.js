@@ -7,9 +7,14 @@ import ViewToggle from '../../components/ViewToggle';
 import SearchBar from '../../components/SearchBar';
 import CategoryNav from '../../components/CategoryNav';
 
+export const revalidate = 300;
+
 export const metadata = {
-  title: 'Browse - ClaudeLists',
-  description: 'Search and filter Claude ecosystem resources.',
+  title: 'Browse Claude Resources - ClaudeLists',
+  description: 'Search, filter, and explore the best Claude ecosystem resources. MCP servers, prompts, GitHub repos, tutorials, and tools, scored and organized by the community.',
+  alternates: {
+    canonical: 'https://claudelists.com/browse',
+  },
 };
 
 const PAGE_SIZE = 24;

@@ -14,6 +14,11 @@
     "pipeline:analyze": "node packages/pipeline/src/index.js --step analyze",
     "pipeline:push": "node packages/pipeline/src/index.js --step push",
     "pipeline:post": "node packages/pipeline/src/index.js --step post",
-    "dev": "npm run dev -w apps/web"
+    "dev": "npm run dev -w apps/web",
+    "article:daily": "node packages/pipeline/src/article-engine/generate-articles.js --type daily",
+    "article:weekly": "node packages/pipeline/src/article-engine/generate-articles.js --type weekly",
+    "article:monthly": "node packages/pipeline/src/article-engine/generate-articles.js --type monthly",
+    "article:check": "node packages/pipeline/src/article-engine/generate-articles.js --check-schedule",
+    "article:publish": "node packages/pipeline/src/article-engine/generate-articles.js --publish"
   }
 }

@@ -1,8 +1,34 @@
 import { createServerClient } from '../lib/supabase';
 import ResourceTable from '../components/ResourceTable';
 import CategoryNav from '../components/CategoryNav';
+import ArticleCard from '../components/ArticleCard';
 
-export const revalidate = 300; // Revalidate every 5 minutes
+export const revalidate = 300;
+
+export const metadata = {
+  title: 'ClaudeLists - Curated Claude & AI Resources Directory',
+  description: 'The community-curated directory of Claude ecosystem resources. Browse MCP servers, prompts, CLAUDE.md configs, tools, tutorials, and more. Updated daily.',
+  alternates: {
+    canonical: 'https://claudelists.com',
+  },
+  openGraph: {
+    title: 'ClaudeLists - Curated Claude & AI Resources Directory',
+    description: 'The community-curated directory of Claude ecosystem resources. Browse MCP servers, prompts, tools, and more.',
+    url: 'https://claudelists.com',
+    type: 'website',
+  },
+};
+
+async function getLatestArticles() {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('articles')
+    .select('id, slug, title, article_type, content, meta_description, published_at, article_resources ( resource_id )')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(3);
+  return data || [];
+}
 
 async function getFeaturedResources() {
   const supabase = createServerClient();
@@ -27,17 +53,6 @@ async function getRecentResources() {
   return data || [];
 }
 
-async function getStats() {
-  const supabase = createServerClient();
-  const { count } = await supabase
-    .from('resources')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'published');
-  const { data: cats } = await supabase
-    .from('categories')
-    .select('id', { count: 'exact', head: true });
-  return { total: count || 0, categories: cats?.length || 10 };
-}
 
 function XIcon({ size = 16 }) {
   return (
@@ -48,10 +63,10 @@ function XIcon({ size = 16 }) {
 }
 
 export default async function HomePage() {
-  const [featured, recent, stats] = await Promise.all([
+  const [featured, recent, latestArticles] = await Promise.all([
     getFeaturedResources(),
     getRecentResources(),
-    getStats(),
+    getLatestArticles(),
   ]);
 
   // Deduplicate: remove from recent any that are already in featured
@@ -67,10 +82,10 @@ export default async function HomePage() {
           Updated daily from the community
         </div>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          The <span className="text-[var(--accent)]">Claude</span> Resource Directory
+          <span className="text-[var(--accent)]">Claude</span> moves fast. This is how you keep up.
         </h1>
         <p className="mt-4 text-lg text-[var(--muted)] max-w-2xl mx-auto leading-relaxed">
-          {stats.total} curated resources across {stats.categories} categories. MCP servers, prompts, CLAUDE.md configs, tools, and more. Discovered daily from the community.
+          A community-curated directory of MCP servers, prompts, tools, and configs. New resources every day, scored and organized.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <a
@@ -92,6 +107,23 @@ export default async function HomePage() {
       <section className="mb-10">
         <CategoryNav />
       </section>
+
+      {/* Latest Articles */}
+      {latestArticles.length > 0 && (
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Latest Digest</h2>
+            <a href="/digest" className="text-sm text-[var(--accent)] hover:underline">
+              All digests →
+            </a>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {latestArticles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Featured Resources (Top Rated) */}
       <section className="mb-12">

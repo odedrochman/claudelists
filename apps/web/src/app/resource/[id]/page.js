@@ -17,6 +17,9 @@ export async function generateMetadata({ params }) {
   return {
     title: `${data.title} - ClaudeLists`,
     description: data.summary,
+    alternates: {
+      canonical: `https://claudelists.com/resource/${id}`,
+    },
     openGraph: {
       title: data.title,
       description: data.summary,

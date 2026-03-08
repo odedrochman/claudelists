@@ -1,5 +1,6 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -54,6 +55,27 @@ function XIcon({ size = 18 }) {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.className}>
+      <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-RZZG5WVJV7"
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-RZZG5WVJV7', {
+              content_group: window.location.pathname.startsWith('/digest/') ? 'digest_article'
+                : window.location.pathname === '/digest' ? 'digest_index'
+                : window.location.pathname.startsWith('/resource/') ? 'resource'
+                : window.location.pathname.startsWith('/category/') ? 'category'
+                : window.location.pathname.startsWith('/browse') ? 'browse'
+                : 'other'
+            });
+          `}
+        </Script>
+      </head>
       <body className="min-h-screen antialiased">
         {/* Header */}
         <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
@@ -63,6 +85,9 @@ export default function RootLayout({ children }) {
               <div className="flex items-center gap-1">
                 <a href="/browse" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
                   Browse
+                </a>
+                <a href="/digest" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
+                  Digest
                 </a>
                 <a href="/submit" className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]">
                   Submit
@@ -104,6 +129,7 @@ export default function RootLayout({ children }) {
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-3">Explore</h3>
                 <ul className="space-y-2 text-sm">
                   <li><a href="/browse" className="text-[var(--foreground)] hover:text-[var(--accent)]">Browse Resources</a></li>
+                  <li><a href="/digest" className="text-[var(--foreground)] hover:text-[var(--accent)]">Digest</a></li>
                   <li><a href="/submit" className="text-[var(--foreground)] hover:text-[var(--accent)]">Submit a Resource</a></li>
                   <li><a href="/about" className="text-[var(--foreground)] hover:text-[var(--accent)]">Why ClaudeLists</a></li>
                 </ul>
