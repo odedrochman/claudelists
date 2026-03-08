@@ -113,6 +113,41 @@ export async function fetchBookmarksApi(limit) {
   }
 }
 
+// ── Upload media via v1 API ──────────────────────────────────
+
+export async function uploadMedia(filePath) {
+  const { userClient } = getClients();
+  try {
+    const mediaId = await userClient.v1.uploadMedia(filePath);
+    console.log(`Uploaded media: ${mediaId}`);
+    return mediaId;
+  } catch (e) {
+    console.error('Failed to upload media:', e.message);
+    throw e;
+  }
+}
+
+// ── Post a tweet with optional media ─────────────────────────
+
+export async function postTweetWithMedia(text, mediaIds = []) {
+  const { userClient } = getClients();
+  try {
+    const payload = { text };
+    if (mediaIds.length > 0) {
+      payload.media = { media_ids: mediaIds };
+    }
+    const result = await userClient.v2.tweet(payload);
+    const tweetId = result.data.id;
+    const me = await userClient.v2.me();
+    const url = `https://x.com/${me.data.username}/status/${tweetId}`;
+    console.log(`Posted tweet: ${url}`);
+    return { id: tweetId, url, text };
+  } catch (e) {
+    console.error('Failed to post tweet:', e.message);
+    throw e;
+  }
+}
+
 // ── Post a tweet via API ─────────────────────────────────────────
 
 export async function postTweet(text) {

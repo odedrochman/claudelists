@@ -8,7 +8,10 @@ config({ override: true });
 config({ path: resolve(__dirname, '../../../apps/web/.env.local'), override: true });
 
 import { createClient } from '@supabase/supabase-js';
-import { getClients, verifyAuth } from './twitter-client.js';
+import { writeFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { getClients, verifyAuth, uploadMedia } from './twitter-client.js';
 
 // ── Supabase client ─────────────────────────────────────────────
 const supabase = createClient(
@@ -81,22 +84,98 @@ function formatForLongTweet(article) {
   return parts.join('\n');
 }
 
-// ── Generate a short promo tweet with digest link ────────────────
-function formatPromoTweet(article) {
-  const articleUrl = `https://claudelists.com/digest/${article.slug}`;
+// ── Fetch author handles from article resources ──────────────────
+async function getArticleAuthors(articleId) {
+  const { data: articleResources } = await supabase
+    .from('article_resources')
+    .select('resource_id')
+    .eq('article_id', articleId);
 
-  // Count resources in the article
+  if (!articleResources || articleResources.length === 0) return [];
+
+  const resourceIds = articleResources.map(ar => ar.resource_id);
+  const { data: resources } = await supabase
+    .from('resources')
+    .select('author_handle')
+    .in('id', resourceIds);
+
+  if (!resources) return [];
+
+  // Deduplicate and filter out nulls/empty, exclude our own handle
+  const handles = [...new Set(
+    resources
+      .map(r => r.author_handle)
+      .filter(h => h && h.toLowerCase() !== 'claudelists')
+  )];
+
+  return handles;
+}
+
+// ── Download OG image to temp file ───────────────────────────────
+async function downloadOgImage(slug) {
+  const ogUrl = `https://claudelists.com/digest/${slug}/opengraph-image`;
+  console.log(`Downloading OG image from ${ogUrl}...`);
+
+  const response = await fetch(ogUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download OG image: ${response.status} ${response.statusText}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const tempPath = join(tmpdir(), `og-${slug}-${Date.now()}.png`);
+  await writeFile(tempPath, buffer);
+  console.log(`OG image saved to ${tempPath} (${buffer.length} bytes)`);
+  return tempPath;
+}
+
+// ── Generate promo tweet following the checklist ─────────────────
+// Checklist order:
+//   1. Title + catchy hook
+//   2. @mentions of featured creators
+//   3. Website digest link FIRST
+//   4. X Article link SECOND (optional)
+//   5. CTA
+//   6. Hashtags
+async function formatPromoTweet(article, xArticleUrl) {
+  const digestUrl = `https://claudelists.com/digest/${article.slug}`;
+  const authors = await getArticleAuthors(article.id);
+
+  // Count resources
   const resourceMatches = [...(article.content || '').matchAll(/##\s*\[([^\]]+)\]\(([^)]+)\)/g)];
   const count = resourceMatches.length;
 
-  // Build a short tweet under 280 chars that will generate an OG card
-  const lines = [
-    article.title,
-    '',
-    count > 0 ? `${count} curated picks from the Claude community.` : 'Curated picks from the Claude community.',
-    '',
-    articleUrl,
-  ];
+  const lines = [];
+
+  // 1. Title + hook
+  lines.push(article.title);
+  lines.push('');
+  if (count > 0) {
+    lines.push(`${count} curated picks from the Claude community.`);
+  }
+
+  // 2. @mentions
+  if (authors.length > 0) {
+    lines.push('');
+    lines.push('Featuring ' + authors.map(h => `@${h}`).join(' '));
+  }
+
+  // 3. Website link FIRST (priority for traffic)
+  lines.push('');
+  lines.push(digestUrl);
+
+  // 4. X Article link SECOND (optional)
+  if (xArticleUrl) {
+    lines.push('');
+    lines.push(`Full article: ${xArticleUrl}`);
+  }
+
+  // 5. CTA
+  lines.push('');
+  lines.push('Tag @claudelists to get featured');
+
+  // 6. Hashtags
+  lines.push('');
+  lines.push('#Claude #AI #ClaudeCode');
 
   return lines.join('\n');
 }
@@ -177,6 +256,7 @@ async function formatForXArticle(article) {
 
 const command = process.argv[2];
 const articleSlug = process.argv[3];
+const extraArg = process.argv[4]; // X Article URL for promo/publish
 
 if (command === 'list') {
   // List published articles
@@ -199,10 +279,10 @@ if (command === 'list') {
     console.log();
   });
 
-} else if (command === 'preview') {
-  // Preview how the article will look as a long tweet
+} else if (command === 'promo') {
+  // Preview promo tweet (does NOT post)
   if (!articleSlug) {
-    console.error('Usage: node publish-long-tweet.js preview <slug>');
+    console.error('Usage: node publish-long-tweet.js promo <slug> [xArticleUrl]');
     process.exit(1);
   }
 
@@ -218,27 +298,26 @@ if (command === 'list') {
     process.exit(1);
   }
 
-  const promo = formatPromoTweet(article);
-  const longReply = formatForLongTweet(article);
+  const promo = await formatPromoTweet(article, extraArg);
 
   console.log('\n' + '='.repeat(60));
-  console.log('TWEET 1: PROMO (shows OG card)');
+  console.log('PROMO TWEET PREVIEW (will attach OG image as media)');
   console.log('='.repeat(60));
-  console.log(`Characters: ${promo.length}/280`);
-  console.log('\n' + '-'.repeat(60) + '\n');
+  console.log(`Characters: ${promo.length}`);
+  if (extraArg) {
+    console.log(`X Article URL: ${extraArg}`);
+  } else {
+    console.log('No X Article URL provided (pass as 4th arg to include)');
+  }
+  console.log('-'.repeat(60) + '\n');
   console.log(promo);
-  console.log('\n' + '='.repeat(60));
-  console.log('TWEET 2: LONG REPLY (full details)');
-  console.log('='.repeat(60));
-  console.log(`Characters: ${longReply.length}`);
-  console.log('\n' + '-'.repeat(60) + '\n');
-  console.log(longReply);
   console.log('\n' + '-'.repeat(60));
+  console.log('\nTo post: node publish-long-tweet.js publish ' + articleSlug + (extraArg ? ' ' + extraArg : ''));
 
-} else if (command === 'post') {
-  // Post the article as a long tweet
+} else if (command === 'publish') {
+  // Post promo tweet with OG image media
   if (!articleSlug) {
-    console.error('Usage: node publish-long-tweet.js post <slug>');
+    console.error('Usage: node publish-long-tweet.js publish <slug> [xArticleUrl]');
     process.exit(1);
   }
 
@@ -259,36 +338,47 @@ if (command === 'list') {
     process.exit(1);
   }
 
-  // Verify auth first
+  // Verify auth
   const me = await verifyAuth();
   if (!me) {
     console.error('Twitter auth failed');
     process.exit(1);
   }
 
-  const promo = formatPromoTweet(article);
-  const longReply = formatForLongTweet(article);
+  const promo = await formatPromoTweet(article, extraArg);
 
+  console.log('\n' + '='.repeat(60));
+  console.log('POSTING PROMO TWEET');
+  console.log('='.repeat(60) + '\n');
+  console.log(promo);
+  console.log('\n' + '-'.repeat(60));
+
+  // Download and upload OG image
+  let mediaId = null;
+  try {
+    const ogImagePath = await downloadOgImage(article.slug);
+    mediaId = await uploadMedia(ogImagePath);
+    // Clean up temp file
+    await unlink(ogImagePath).catch(() => {});
+  } catch (e) {
+    console.warn(`Warning: Could not attach OG image: ${e.message}`);
+    console.warn('Posting without image...');
+  }
+
+  // Post single promo tweet with media
   const { userClient } = getClients();
+  const tweetPayload = { text: promo };
+  if (mediaId) {
+    tweetPayload.media = { media_ids: [mediaId] };
+  }
 
-  // Step 1: Post short promo tweet (will show OG card)
-  console.log(`\nStep 1: Posting promo tweet (${promo.length} chars) as @${me.username}...`);
-  const promoResult = await userClient.v2.tweet(promo);
-  const promoTweetId = promoResult.data.id;
-  const tweetUrl = `https://x.com/${me.username}/status/${promoTweetId}`;
-  console.log(`Promo posted: ${tweetUrl}`);
+  console.log(`\nPosting promo tweet (${promo.length} chars) as @${me.username}...`);
+  const result = await userClient.v2.tweet(tweetPayload);
+  const tweetId = result.data.id;
+  const tweetUrl = `https://x.com/${me.username}/status/${tweetId}`;
+  console.log(`Posted: ${tweetUrl}`);
 
-  // Step 2: Post long reply with full details
-  console.log(`\nStep 2: Posting long reply (${longReply.length} chars)...`);
-  const replyResult = await userClient.v2.tweet({
-    text: longReply,
-    reply: { in_reply_to_tweet_id: promoTweetId },
-  });
-  const replyId = replyResult.data.id;
-  const replyUrl = `https://x.com/${me.username}/status/${replyId}`;
-  console.log(`Reply posted: ${replyUrl}`);
-
-  // Save the URL back to the article
+  // Save URL to article
   const { error: updateError } = await supabase
     .from('articles')
     .update({
@@ -302,6 +392,35 @@ if (command === 'list') {
   } else {
     console.log('Saved tweet URL to article record.');
   }
+
+} else if (command === 'preview') {
+  // Legacy: Preview long tweet format
+  if (!articleSlug) {
+    console.error('Usage: node publish-long-tweet.js preview <slug>');
+    process.exit(1);
+  }
+
+  const { data: article, error } = await supabase
+    .from('articles')
+    .select('*')
+    .eq('slug', articleSlug)
+    .eq('status', 'published')
+    .single();
+
+  if (error || !article) {
+    console.error('Article not found or not published');
+    process.exit(1);
+  }
+
+  const longTweet = formatForLongTweet(article);
+
+  console.log('\n' + '='.repeat(60));
+  console.log('LONG TWEET PREVIEW');
+  console.log('='.repeat(60));
+  console.log(`Characters: ${longTweet.length}`);
+  console.log('-'.repeat(60) + '\n');
+  console.log(longTweet);
+  console.log('\n' + '-'.repeat(60));
 
 } else if (command === 'xarticle') {
   // Generate formatted content for pasting into X Article editor
@@ -334,8 +453,9 @@ if (command === 'list') {
 
 } else {
   console.log('Usage:');
-  console.log('  node publish-long-tweet.js list              # List published articles');
-  console.log('  node publish-long-tweet.js preview <slug>    # Preview formatted long tweet');
-  console.log('  node publish-long-tweet.js xarticle <slug>   # Format for X Article editor');
-  console.log('  node publish-long-tweet.js post <slug>       # Post to X as long tweet');
+  console.log('  node publish-long-tweet.js list                          # List published articles');
+  console.log('  node publish-long-tweet.js promo <slug> [xArticleUrl]    # Preview promo tweet');
+  console.log('  node publish-long-tweet.js publish <slug> [xArticleUrl]  # Post promo tweet with OG image');
+  console.log('  node publish-long-tweet.js preview <slug>                # Preview long tweet format');
+  console.log('  node publish-long-tweet.js xarticle <slug>               # Format for X Article editor');
 }
