@@ -125,7 +125,33 @@ export default function AddContent({ adminKey }) {
     if (checked) setOutputResource(false);
   }
 
-  async function handleGenerateArticle() {
+  function getCachedArticle(sourceUrl) {
+    try {
+      const cache = JSON.parse(sessionStorage.getItem('articleContentCache') || '{}');
+      return cache[sourceUrl] || null;
+    } catch { return null; }
+  }
+
+  function setCachedArticle(sourceUrl, content) {
+    try {
+      const cache = JSON.parse(sessionStorage.getItem('articleContentCache') || '{}');
+      cache[sourceUrl] = content;
+      sessionStorage.setItem('articleContentCache', JSON.stringify(cache));
+    } catch { /* ignore */ }
+  }
+
+  async function handleGenerateArticle(forceRegenerate = false) {
+    const sourceUrl = preview?.source_url || url;
+
+    // Check cache first (unless forcing regeneration)
+    if (!forceRegenerate) {
+      const cached = getCachedArticle(sourceUrl);
+      if (cached) {
+        setArticleContent(cached);
+        return;
+      }
+    }
+
     setGeneratingArticle(true);
     setError(null);
 
@@ -136,7 +162,7 @@ export default function AddContent({ adminKey }) {
         body: JSON.stringify({
           title,
           summary,
-          source_url: preview?.source_url || url,
+          source_url: sourceUrl,
           url_type: preview?.url_type,
           author: preview?.author,
           content: preview?.extracted_content || '',
@@ -152,6 +178,7 @@ export default function AddContent({ adminKey }) {
       }
 
       setArticleContent(data.content);
+      setCachedArticle(sourceUrl, data.content);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -626,11 +653,11 @@ export default function AddContent({ adminKey }) {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={handleGenerateArticle}
+                      onClick={() => handleGenerateArticle(!!articleContent)}
                       disabled={generatingArticle}
                       className="px-3 py-1 bg-[#C15F3C] text-white rounded text-xs font-medium hover:bg-[#A84E31] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {generatingArticle ? 'Generating...' : 'Auto-generate with Claude'}
+                      {generatingArticle ? 'Generating...' : articleContent ? 'Regenerate with Claude' : 'Auto-generate with Claude'}
                     </button>
                     {articleContent && (
                       <button
@@ -697,7 +724,20 @@ export default function AddContent({ adminKey }) {
 
 // Simple markdown to HTML for preview (no heavy dependency needed)
 function simpleMarkdownToHtml(md) {
-  return md
+  // Extract HTML blocks (iframes, divs with styles, etc.) and replace with placeholders
+  const htmlBlocks = [];
+  let processed = md.replace(/<(div|iframe|video|embed)[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+    htmlBlocks.push(match);
+    return `%%HTML_BLOCK_${htmlBlocks.length - 1}%%`;
+  });
+  // Also extract self-closing / void HTML blocks
+  processed = processed.replace(/<(iframe|embed|video)[^>]*\/?\s*>/gi, (match) => {
+    htmlBlocks.push(match);
+    return `%%HTML_BLOCK_${htmlBlocks.length - 1}%%`;
+  });
+
+  // Now escape remaining HTML
+  processed = processed
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -711,8 +751,7 @@ function simpleMarkdownToHtml(md) {
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
     .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[hul])/gm, function(match, offset, str) {
-      // Don't wrap lines that are already HTML tags
+    .replace(/^(?!<[hul])/gm, function(match) {
       return match;
     })
     .replace(/^([^<].*)$/gm, '<p>$1</p>')
@@ -721,4 +760,13 @@ function simpleMarkdownToHtml(md) {
     .replace(/(<\/h[123]>)<\/p>/g, '$1')
     .replace(/<p>(<ul>)/g, '$1')
     .replace(/(<\/ul>)<\/p>/g, '$1');
+
+  // Restore HTML blocks
+  htmlBlocks.forEach((block, i) => {
+    processed = processed.replace(`%%HTML_BLOCK_${i}%%`, block);
+    // Also clean up if it got wrapped in <p> tags
+    processed = processed.replace(`<p>${block}</p>`, block);
+  });
+
+  return processed;
 }
