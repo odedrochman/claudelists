@@ -36,7 +36,10 @@ async function getCategoryResources(slug, { contentType, tag, sort = 'score' } =
     .eq('status', 'published')
     .order(sortOpt.column, { ascending: sortOpt.ascending, nullsFirst: sortOpt.nullsFirst })
     .limit(50);
-  if (sort === 'score') {
+  if (sortOpt.secondary) {
+    query = query.order(sortOpt.secondary.column, { ascending: sortOpt.secondary.ascending });
+  } else if (sort === 'score') {
+    query = query.order('tweet_created_at', { ascending: false, nullsFirst: false });
     query = query.order('discovered_at', { ascending: false });
   }
   if (contentType) query = query.eq('content_type', contentType);
@@ -97,7 +100,7 @@ export default async function CategoryPage({ params, searchParams }) {
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <span className="text-xs text-[var(--muted)]">Sort:</span>
-          {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
+          {Object.entries(SORT_OPTIONS).filter(([, opt]) => opt.pill).map(([key, opt]) => (
             <a
               key={key}
               href={buildCategoryFilterHref(slug, sp, 'sort', key)}
@@ -154,6 +157,12 @@ export default async function CategoryPage({ params, searchParams }) {
                 score: buildCategoryFilterHref(slug, sp, 'sort', 'score'),
                 newest: buildCategoryFilterHref(slug, sp, 'sort', 'newest'),
                 oldest: buildCategoryFilterHref(slug, sp, 'sort', 'oldest'),
+                title_asc: buildCategoryFilterHref(slug, sp, 'sort', 'title_asc'),
+                title_desc: buildCategoryFilterHref(slug, sp, 'sort', 'title_desc'),
+                author_asc: buildCategoryFilterHref(slug, sp, 'sort', 'author_asc'),
+                author_desc: buildCategoryFilterHref(slug, sp, 'sort', 'author_desc'),
+                type_asc: buildCategoryFilterHref(slug, sp, 'sort', 'type_asc'),
+                type_desc: buildCategoryFilterHref(slug, sp, 'sort', 'type_desc'),
               }}
             />
           </div>

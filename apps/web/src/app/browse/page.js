@@ -36,8 +36,11 @@ async function getResources({ q, category, contentType, tag, sort = 'score', pag
     .order(sortOpt.column, { ascending: sortOpt.ascending, nullsFirst: sortOpt.nullsFirst })
     .range(offset, offset + PAGE_SIZE - 1);
 
-  // Secondary sort: when primary is score, break ties by recency
-  if (sort === 'score') {
+  // Secondary sort: break ties or handle nulls
+  if (sortOpt.secondary) {
+    query = query.order(sortOpt.secondary.column, { ascending: sortOpt.secondary.ascending });
+  } else if (sort === 'score') {
+    query = query.order('tweet_created_at', { ascending: false, nullsFirst: false });
     query = query.order('discovered_at', { ascending: false });
   }
 
@@ -84,6 +87,12 @@ async function BrowseContent({ searchParams }) {
                 score: buildFilterHref(params, 'sort', 'score'),
                 newest: buildFilterHref(params, 'sort', 'newest'),
                 oldest: buildFilterHref(params, 'sort', 'oldest'),
+                title_asc: buildFilterHref(params, 'sort', 'title_asc'),
+                title_desc: buildFilterHref(params, 'sort', 'title_desc'),
+                author_asc: buildFilterHref(params, 'sort', 'author_asc'),
+                author_desc: buildFilterHref(params, 'sort', 'author_desc'),
+                type_asc: buildFilterHref(params, 'sort', 'type_asc'),
+                type_desc: buildFilterHref(params, 'sort', 'type_desc'),
               }}
             />
           </div>
@@ -175,7 +184,7 @@ export default async function BrowsePage({ searchParams }) {
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <span className="text-xs text-[var(--muted)]">Sort:</span>
-          {Object.entries(SORT_OPTIONS).map(([key, opt]) => (
+          {Object.entries(SORT_OPTIONS).filter(([, opt]) => opt.pill).map(([key, opt]) => (
             <a
               key={key}
               href={buildFilterHref(params, 'sort', key)}

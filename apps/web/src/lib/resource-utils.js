@@ -50,7 +50,13 @@ export function getScoreStyle(score) {
 }
 
 export const SORT_OPTIONS = {
-  score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated' },
-  newest: { column: 'discovered_at', ascending: false, nullsFirst: false, label: 'Newest' },
-  oldest: { column: 'discovered_at', ascending: true, nullsFirst: false, label: 'Oldest' },
+  score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated', pill: true },
+  newest: { column: 'tweet_created_at', ascending: false, nullsFirst: false, label: 'Newest', pill: true, secondary: { column: 'discovered_at', ascending: false } },
+  oldest: { column: 'tweet_created_at', ascending: true, nullsFirst: true, label: 'Oldest', pill: true, secondary: { column: 'discovered_at', ascending: true } },
+  title_asc: { column: 'title', ascending: true, nullsFirst: false, label: 'Title A-Z' },
+  title_desc: { column: 'title', ascending: false, nullsFirst: false, label: 'Title Z-A' },
+  author_asc: { column: 'author_handle', ascending: true, nullsFirst: false, label: 'Author A-Z' },
+  author_desc: { column: 'author_handle', ascending: false, nullsFirst: false, label: 'Author Z-A' },
+  type_asc: { column: 'content_type', ascending: true, nullsFirst: false, label: 'Type A-Z' },
+  type_desc: { column: 'content_type', ascending: false, nullsFirst: false, label: 'Type Z-A' },
 };
