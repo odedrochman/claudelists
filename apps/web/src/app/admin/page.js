@@ -1,6 +1,7 @@
 import { createServiceClient } from '../../lib/supabase';
 import AdminActions from './AdminActions';
 import ArticleActions from './ArticleActions';
+import AddContent from './AddContent';
 
 export const metadata = {
   title: 'Admin - ClaudeLists',
@@ -34,7 +35,7 @@ export default async function AdminPage({ searchParams }) {
     );
   }
 
-  const activeTab = tab || 'submissions';
+  const activeTab = tab || 'add-content';
   const supabase = createServiceClient();
 
   return (
@@ -42,21 +43,28 @@ export default async function AdminPage({ searchParams }) {
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Tab navigation */}
         <div className="flex items-center gap-4 mb-6 border-b border-[#E0D5C1]">
-          {['submissions', 'digest'].map((t) => (
+          {[
+            { key: 'add-content', label: 'Add Content' },
+            { key: 'submissions', label: 'Submissions' },
+            { key: 'digest', label: 'Digest' },
+          ].map((t) => (
             <a
-              key={t}
-              href={`/admin?key=${key}&tab=${t}`}
+              key={t.key}
+              href={`/admin?key=${key}&tab=${t.key}`}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                activeTab === t
+                activeTab === t.key
                   ? 'border-[#C15F3C] text-[#C15F3C]'
                   : 'border-transparent text-[#8B7355] hover:text-[#5C4A32]'
               }`}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t.label}
             </a>
           ))}
         </div>
 
+        {activeTab === 'add-content' && (
+          <AddContent adminKey={key} />
+        )}
         {activeTab === 'submissions' && (
           <SubmissionsTab supabase={supabase} filterStatus={status || 'pending'} adminKey={key} />
         )}
