@@ -90,6 +90,16 @@ export async function POST(request) {
     }
   }
 
+  // Fire non-blocking OG background generation
+  try {
+    const { generateArticleBackground } = await import('../../../../../lib/og-background');
+    generateArticleBackground(type, title, article.id).catch(e =>
+      console.warn('Article OG background generation failed:', e.message)
+    );
+  } catch (e) {
+    console.warn('Article OG background skipped:', e.message);
+  }
+
   return NextResponse.json({
     success: true,
     article: {

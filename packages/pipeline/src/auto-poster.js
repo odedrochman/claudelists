@@ -61,18 +61,27 @@ ${JSON.stringify(resourceList, null, 2)}
 Grouped by category:
 ${JSON.stringify(byCategory, null, 2)}
 
+TONE (Persona G: Loss Aversion + Social Proof):
+- Imply the reader is missing out on what others already know or use
+- Frame inaction as a cost. Use "you" directly
+- Short, punchy, slightly spicy. Not mean, but makes you feel behind
+- Examples of the voice:
+  "84K devs already know about X. You probably don't. Fix that."
+  "The difference between 'Claude is okay' and 'Claude is incredible' is usually 5 lines in your CLAUDE.md."
+  "The Claude power users in your timeline are all running MCP servers. The rest are wondering why their setup feels slow."
+
 Rules:
-- Start with a compelling hook line about what's new (e.g., "🆕 ${resources.length} new Claude resources just dropped on ClaudeLists.com")
+- Open with a Persona G hook that makes the reader feel behind (NOT generic "new resources just dropped" energy)
 - Organize by category with clear section headers using emoji
-- For each resource: one line with title + brief why it matters + @mention of original author
-- Tag ALL original authors with @mentions — this is critical for engagement
-- End with a call-to-action: visit claudelists.com and tag @claudelists with Claude resources
+- For each resource: one punchy line with title + why it matters + @mention of original author. Keep the loss-aversion tone per item too.
+- Tag ALL original authors with @mentions
+- End with: visit claudelists.com and tag @claudelists with Claude resources
 - Add 3-5 relevant hashtags at the end from: #Claude #ClaudeCode #MCP #AI #AnthropicAI #AITools #LLM #AgentSDK #Anthropic
-- Keep it scannable — use line breaks, emojis for section headers, bullet-style formatting
+- Keep it scannable. Use line breaks, emojis for section headers, bullet-style formatting
 - If a resource has a downloadable .md file, mention it briefly
-- Be informative and community-oriented, not hype-y
+- Never use em dashes
 - Stay under 4000 characters total (Twitter Premium long post limit)
-- Do NOT use markdown formatting (no **, no ##, no []()) — just plain text with emojis and line breaks
+- Do NOT use markdown formatting (no **, no ##, no []()). Plain text with emojis and line breaks only.
 
 Return ONLY the post text. No JSON, no markdown fences, no explanation.`;
 

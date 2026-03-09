@@ -278,6 +278,10 @@ export default function AddContent({ adminKey }) {
     }
   }
 
+  function clearArticleCache() {
+    try { sessionStorage.removeItem('articleContentCache'); } catch { /* ignore */ }
+  }
+
   function handleReset() {
     setUrl('');
     setPreview(null);
@@ -298,6 +302,7 @@ export default function AddContent({ adminKey }) {
     setMetaDescription('');
     setArticleContent('');
     setShowArticlePreview(false);
+    clearArticleCache();
   }
 
   function getExecuteButtonText() {
@@ -406,6 +411,13 @@ export default function AddContent({ adminKey }) {
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => { clearArticleCache(); alert('Article cache cleared'); }}
+            className="mt-1 text-xs text-[#B8A990] hover:text-[#C15F3C] hover:underline"
+          >
+            Clear article cache
+          </button>
         </form>
       )}
 
@@ -630,6 +642,7 @@ export default function AddContent({ adminKey }) {
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="quick">Quick Update</option>
                   </select>
                 </div>
               </div>

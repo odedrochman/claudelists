@@ -68,7 +68,7 @@ async function formatPromoTweet(supabase, article, xArticleUrl) {
   // Persona G: loss aversion + social proof
   lines.push(article.title);
   lines.push('');
-  if (count > 0) {
+  if (count > 1) {
     const hooks = [
       `${count} resources your timeline already knows about. Catch up.`,
       `${count} drops the Claude power users found this week. You're behind.`,
@@ -77,6 +77,16 @@ async function formatPromoTweet(supabase, article, xArticleUrl) {
       `Your competitors bookmarked these ${count} resources yesterday. Your move.`,
     ];
     lines.push(hooks[Math.floor(Math.random() * hooks.length)]);
+  } else {
+    // Single resource or standalone article hooks
+    const soloHooks = [
+      `The Claude devs shipping fastest already know this. Now you do too.`,
+      `This is the kind of thing that separates "I tried Claude" from "I ship with Claude."`,
+      `Your timeline figured this out already. Time you did too.`,
+      `Most people skip stuff like this. The ones who don't are shipping circles around you.`,
+      `If you're still doing this manually, this one's for you.`,
+    ];
+    lines.push(soloHooks[Math.floor(Math.random() * soloHooks.length)]);
   }
 
   if (authors.length > 0) {

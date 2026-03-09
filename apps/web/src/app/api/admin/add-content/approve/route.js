@@ -140,6 +140,22 @@ export async function POST(request) {
     }
   }
 
+  // Step 5: Assign OG background from category pool (non-blocking)
+  try {
+    const { assignResourceBackground } = await import('../../../../../lib/og-background');
+    const { data: catRow } = await supabase
+      .from('categories')
+      .select('slug')
+      .eq('id', categoryId)
+      .single();
+    const catSlug = catRow?.slug || 'discussion';
+    assignResourceBackground(catSlug, resource.id).catch(e =>
+      console.warn('Failed to assign OG background:', e.message)
+    );
+  } catch (e) {
+    console.warn('OG background assignment skipped:', e.message);
+  }
+
   return NextResponse.json({
     success: true,
     resource: { id: resource.id, title },

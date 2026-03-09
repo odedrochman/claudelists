@@ -25,6 +25,11 @@ export default function ArticleActions({ article, adminKey }) {
   const [editLoading, setEditLoading] = useState(false);
   const [editPreview, setEditPreview] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [ogBgLoading, setOgBgLoading] = useState(false);
+  const [ogBgResult, setOgBgResult] = useState(null);
+  const [xArticleContent, setXArticleContent] = useState(null);
+  const [xArticleLoading, setXArticleLoading] = useState(false);
+  const [xArticleCopied, setXArticleCopied] = useState(false);
 
   const articleId = article.id;
 
@@ -138,6 +143,59 @@ export default function ArticleActions({ article, adminKey }) {
     }
   }
 
+  async function handleGenerateOgBg() {
+    setOgBgLoading(true);
+    setOgBgResult(null);
+    try {
+      const res = await fetch(`/api/admin/generate-og-background?key=${adminKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetType: 'article', targetId: articleId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOgBgResult({ success: true, url: data.url });
+        setTimeout(() => router.refresh(), 2000);
+      } else {
+        setOgBgResult({ success: false, error: data.error || 'Failed to generate' });
+      }
+    } catch {
+      setOgBgResult({ success: false, error: 'Network error' });
+    } finally {
+      setOgBgLoading(false);
+    }
+  }
+
+  async function handleGenerateXArticle() {
+    setXArticleLoading(true);
+    setXArticleContent(null);
+    setXArticleCopied(false);
+    try {
+      const res = await fetch(`/api/admin/articles/${articleId}/x-article-content?key=${adminKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setXArticleContent(data);
+      } else {
+        alert(data.error || 'Failed to generate X Article content');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setXArticleLoading(false);
+    }
+  }
+
+  async function copyXArticleContent() {
+    if (xArticleContent?.content) {
+      await navigator.clipboard.writeText(xArticleContent.content);
+      setXArticleCopied(true);
+      setTimeout(() => setXArticleCopied(false), 2000);
+    }
+  }
+
   async function handleRegenerate() {
     setRegenerating(true);
     try {
@@ -178,14 +236,26 @@ export default function ArticleActions({ article, adminKey }) {
 
   return (
     <div className="flex flex-col gap-3 w-full mt-4 border-t border-[#E0D5C1] pt-4">
-      {/* Preview toggle */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Preview toggle + OG Background */}
+      <div className="flex gap-2 flex-wrap items-center">
         <button
           onClick={() => setShowContent(!showContent)}
           className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[#E0D5C1] text-[#5C4A32] hover:bg-[#F5F0E8] transition-colors"
         >
           {showContent ? 'Hide Article' : 'Preview Article'}
         </button>
+        <button
+          onClick={handleGenerateOgBg}
+          disabled={ogBgLoading}
+          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50 transition-colors"
+        >
+          {ogBgLoading ? 'Generating BG...' : article.og_background_url ? 'Regenerate OG Background' : 'Generate OG Background'}
+        </button>
+        {ogBgResult && (
+          <span className={`text-[10px] ${ogBgResult.success ? 'text-emerald-600' : 'text-red-600'}`}>
+            {ogBgResult.success ? 'Background generated!' : ogBgResult.error}
+          </span>
+        )}
       </div>
 
       {/* Article content preview */}
@@ -372,6 +442,55 @@ export default function ArticleActions({ article, adminKey }) {
             </div>
           )}
         </>
+      )}
+
+      {/* Published: OG Image + Generate X Article Content */}
+      {article.status === 'published' && (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={handleGenerateXArticle}
+              disabled={xArticleLoading}
+              className="px-4 py-2 bg-[#1D9BF0] text-white text-sm font-medium rounded-lg hover:bg-[#1A8CD8] disabled:opacity-50 transition-colors"
+            >
+              {xArticleLoading ? 'Generating...' : 'Generate X Article Content'}
+            </button>
+            <a
+              href={`/digest/${article.slug}/opengraph-image`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-[#5C4A32] text-white text-sm font-medium rounded-lg hover:bg-[#3D2E1F] transition-colors inline-flex items-center gap-1.5"
+            >
+              Download OG Image
+            </a>
+          </div>
+
+          {xArticleContent && (
+            <div className="flex flex-col gap-2 p-3 bg-sky-50 rounded-lg border border-sky-200">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-sky-800">
+                  X Article Content ({xArticleContent.charCount} chars)
+                </p>
+                <button
+                  onClick={copyXArticleContent}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    xArticleCopied
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-sky-600 text-white hover:bg-sky-700'
+                  }`}
+                >
+                  {xArticleCopied ? 'Copied!' : 'Copy to Clipboard'}
+                </button>
+              </div>
+              <p className="text-[10px] text-sky-600">
+                Lines marked [EMBED TWEET] = use + menu &gt; Tweet in X editor to embed
+              </p>
+              <pre className="text-xs text-[#3D2E1F] whitespace-pre-wrap font-sans leading-relaxed bg-white border border-sky-100 rounded-lg p-3 max-h-96 overflow-y-auto">
+                {xArticleContent.content}
+              </pre>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Published: Post Promo Tweet */}

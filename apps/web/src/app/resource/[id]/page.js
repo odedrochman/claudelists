@@ -48,6 +48,19 @@ async function getResource(id) {
   return data;
 }
 
+async function getLinkedArticle(resourceId) {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('article_resources')
+    .select('articles(id, slug, title, article_type, meta_description, status)')
+    .eq('resource_id', resourceId)
+    .limit(1)
+    .single();
+
+  if (data?.articles?.status === 'published') return data.articles;
+  return null;
+}
+
 export const revalidate = 300;
 
 export default async function ResourcePage({ params }) {
@@ -55,6 +68,8 @@ export default async function ResourcePage({ params }) {
   const resource = await getResource(id);
 
   if (!resource) notFound();
+
+  const linkedArticle = await getLinkedArticle(resource.id);
 
   const category = CATEGORIES.find(c => c.name === resource.categories?.name);
   const tags = resource.resource_tags?.map(rt => rt.tags?.name).filter(Boolean) || [];
@@ -111,6 +126,33 @@ export default async function ResourcePage({ params }) {
           <p className="text-[var(--muted)]">{resource.summary}</p>
         )}
       </div>
+
+      {/* Linked Article CTA */}
+      {linkedArticle && (
+        <a
+          href={`/digest/${linkedArticle.slug}`}
+          className="block mb-6 rounded-xl border-2 border-[var(--accent)] bg-[#C15F3C10] p-4 hover:bg-[#C15F3C18] transition-colors"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide mb-1">
+                Full Article Available
+              </div>
+              <div className="text-sm font-medium text-[var(--foreground)] truncate">
+                {linkedArticle.title}
+              </div>
+              {linkedArticle.meta_description && (
+                <div className="text-xs text-[var(--muted)] mt-1 line-clamp-1">
+                  {linkedArticle.meta_description}
+                </div>
+              )}
+            </div>
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-[var(--accent)]">
+              <path d="M6 4l4 4-4 4" />
+            </svg>
+          </div>
+        </a>
+      )}
 
       {/* Meta */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--muted)] mb-6 pb-6 border-b border-[var(--border)]">
@@ -182,8 +224,8 @@ export default async function ResourcePage({ params }) {
         </div>
       )}
 
-      {/* Extracted content */}
-      {resource.extracted_content && (
+      {/* Extracted content - only show if there's user-visible data */}
+      {resource.extracted_content && (resource.extracted_content.title || resource.extracted_content.description || resource.extracted_content.stars != null || resource.extracted_content.language) && (
         <div className="mb-6">
           <h2 className="text-sm font-semibold mb-2 text-[var(--muted)]">Extracted Info</h2>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm space-y-1">

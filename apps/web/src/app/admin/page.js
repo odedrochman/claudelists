@@ -2,6 +2,7 @@ import { createServiceClient } from '../../lib/supabase';
 import AdminActions from './AdminActions';
 import ArticleActions from './ArticleActions';
 import AddContent from './AddContent';
+import DigestGenerator from './DigestGenerator';
 
 export const metadata = {
   title: 'Admin - ClaudeLists',
@@ -169,6 +170,13 @@ async function SubmissionsTab({ supabase, filterStatus, adminKey }) {
 }
 
 async function ArticlesTab({ supabase, filterStatus, adminKey }) {
+  // Count unfeatured resources for digest generator
+  const { count: unfeaturedCount } = await supabase
+    .from('resources')
+    .select('id', { count: 'exact', head: true })
+    .eq('featured_in_daily', false)
+    .eq('status', 'published');
+
   let query = supabase
     .from('articles')
     .select(`
@@ -195,6 +203,8 @@ async function ArticlesTab({ supabase, filterStatus, adminKey }) {
 
   return (
     <>
+      <DigestGenerator adminKey={adminKey} unfeaturedCount={unfeaturedCount || 0} />
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-[#3D2E1F]">Digest</h2>
         <div className="flex gap-2 flex-wrap">

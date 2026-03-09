@@ -11,12 +11,14 @@ const TYPE_LABEL = {
   daily: 'Daily Digest',
   weekly: 'Weekly Digest',
   monthly: 'Monthly Digest',
+  quick: 'Quick Update',
 };
 
 const TYPE_COLOR = {
   daily: 'bg-blue-50 text-blue-700',
   weekly: 'bg-purple-50 text-purple-700',
   monthly: 'bg-emerald-50 text-emerald-700',
+  quick: 'bg-red-50 text-red-700',
 };
 
 async function getArticle(slug, allowDraft = false) {
@@ -27,7 +29,7 @@ async function getArticle(slug, allowDraft = false) {
     .select(`
       id, slug, title, article_type, content, meta_description, og_title,
       status, published_at, period_start, period_end,
-      article_resources ( position, resource_id, resources ( title, tweet_url, author_handle ) )
+      article_resources ( position, resource_id, resources ( title, tweet_url, author_handle, primary_url, content_type ) )
     `)
     .eq('slug', slug);
 
@@ -100,33 +102,45 @@ export default async function ArticlePage({ params, searchParams }) {
 
   const articleUrl = `https://claudelists.com/digest/${article.slug}`;
 
-  // Build handle -> tweet_url map for inline embeds
-  const handleTweetMap = {};
-  (article.article_resources || [])
-    .filter(ar => ar.resources?.tweet_url && ar.resources?.author_handle)
-    .forEach(ar => {
-      handleTweetMap[ar.resources.author_handle.toLowerCase()] = ar.resources.tweet_url;
-    });
+  // Build ordered resource list for embed injection (position-based)
+  const orderedResources = (article.article_resources || [])
+    .sort((a, b) => a.position - b.position)
+    .map(ar => ({
+      tweetUrl: ar.resources?.tweet_url,
+      handle: ar.resources?.author_handle,
+      primaryUrl: ar.resources?.primary_url,
+      contentType: ar.resources?.content_type,
+    }));
 
-  // Inject tweet embed placeholders before each <hr> by finding the @handle in the preceding section
-  // Split HTML on <hr> tags, and for each section find the author handle to attach the tweet
-  if (Object.keys(handleTweetMap).length > 0) {
+  // Helper: extract YouTube video ID from URL
+  function extractYouTubeId(url) {
+    if (!url) return null;
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  }
+
+  // Inject tweet embeds and YouTube iframes between <hr>-separated sections
+  if (orderedResources.length > 0) {
     const parts = htmlContent.split(/<hr\s*\/?>/);
     const rebuilt = [];
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       rebuilt.push(part);
-      // Only add tweet embed between sections (not after the last one)
+      // Only add embeds between sections (not after the last one)
       if (i < parts.length - 1) {
-        // Find @handle link in this section
-        const handleMatch = part.match(/x\.com\/([a-zA-Z0-9_]+)(?:"|'|\))/);
-        if (handleMatch) {
-          const handle = handleMatch[1].toLowerCase();
-          const tweetUrl = handleTweetMap[handle];
-          if (tweetUrl) {
-            rebuilt.push(`<div data-tweet-url="${tweetUrl}" style="margin: 1rem 0; max-width: 550px;"></div>`);
-          }
+        const resource = orderedResources[i];
+
+        // Check for YouTube video embed
+        const youtubeId = resource ? (extractYouTubeId(resource.primaryUrl) || extractYouTubeId(resource.tweetUrl)) : null;
+        if (youtubeId) {
+          rebuilt.push(`<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:1.5rem 0;border-radius:12px;"><iframe src="https://www.youtube.com/embed/${youtubeId}" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>`);
         }
+
+        // Check for tweet embed
+        if (resource && resource.tweetUrl && resource.handle) {
+          rebuilt.push(`<div data-tweet-url="${resource.tweetUrl}" style="margin: 1rem 0; max-width: 550px;"></div>`);
+        }
+
         rebuilt.push('<hr>');
       }
     }

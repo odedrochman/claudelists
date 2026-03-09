@@ -101,6 +101,24 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Failed to reject article' }, { status: 500 });
     }
 
+    // Reset featured_in_daily on linked resources so they're available for future digests
+    const { data: linkedResources } = await supabase
+      .from('article_resources')
+      .select('resource_id')
+      .eq('article_id', id);
+
+    if (linkedResources && linkedResources.length > 0) {
+      const resourceIds = linkedResources.map(r => r.resource_id);
+      const { error: resetError } = await supabase
+        .from('resources')
+        .update({ featured_in_daily: false, featured_daily_at: null })
+        .in('id', resourceIds);
+
+      if (resetError) {
+        console.warn('Failed to reset featured_in_daily on rejected article resources:', resetError.message);
+      }
+    }
+
     return NextResponse.json({ success: true, action: 'reject' });
   }
 }
