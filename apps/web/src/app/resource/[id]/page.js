@@ -1,7 +1,7 @@
 import { createServerClient } from '../../../lib/supabase';
 import { CATEGORIES } from '../../../lib/categories';
 import { notFound } from 'next/navigation';
-import { formatContentType, getScoreStyle } from '../../../lib/resource-utils';
+import { formatContentType, getScoreStyle, SKILL_LEVELS, CONTENT_FORMATS } from '../../../lib/resource-utils';
 import ShareButtons from './ShareButtons';
 
 export async function generateMetadata({ params }) {
@@ -61,6 +61,33 @@ async function getLinkedArticle(resourceId) {
   return null;
 }
 
+async function getRelatedResources(resource) {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('resources')
+    .select('id, title, summary, categories(name, slug), ai_quality_score, content_type, tweet_created_at, discovered_at, author_handle')
+    .eq('status', 'published')
+    .eq('category_id', resource.category_id)
+    .neq('id', resource.id)
+    .order('ai_quality_score', { ascending: false, nullsFirst: false })
+    .limit(4);
+  return data || [];
+}
+
+async function getMoreByAuthor(resource) {
+  if (!resource.author_handle) return [];
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('resources')
+    .select('id, title, summary, categories(name, slug), ai_quality_score, content_type, tweet_created_at, discovered_at, author_handle')
+    .eq('status', 'published')
+    .eq('author_handle', resource.author_handle)
+    .neq('id', resource.id)
+    .order('ai_quality_score', { ascending: false, nullsFirst: false })
+    .limit(4);
+  return data || [];
+}
+
 export const revalidate = 300;
 
 export default async function ResourcePage({ params }) {
@@ -69,7 +96,11 @@ export default async function ResourcePage({ params }) {
 
   if (!resource) notFound();
 
-  const linkedArticle = await getLinkedArticle(resource.id);
+  const [linkedArticle, relatedResources, moreByAuthor] = await Promise.all([
+    getLinkedArticle(resource.id),
+    getRelatedResources(resource),
+    getMoreByAuthor(resource),
+  ]);
 
   const category = CATEGORIES.find(c => c.name === resource.categories?.name);
   const tags = resource.resource_tags?.map(rt => rt.tags?.name).filter(Boolean) || [];
@@ -118,6 +149,16 @@ export default async function ResourcePage({ params }) {
               title={`Quality score: ${score}/10`}
             >
               {score}/10
+            </span>
+          )}
+          {resource.skill_level && SKILL_LEVELS[resource.skill_level] && (
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${SKILL_LEVELS[resource.skill_level].color}`}>
+              {SKILL_LEVELS[resource.skill_level].label}
+            </span>
+          )}
+          {resource.content_format && CONTENT_FORMATS[resource.content_format] && (
+            <span className="inline-flex items-center rounded-full border border-[var(--border)] px-2.5 py-1 text-xs font-medium text-[var(--muted)]">
+              {CONTENT_FORMATS[resource.content_format].label}
             </span>
           )}
         </div>
@@ -256,10 +297,61 @@ export default async function ResourcePage({ params }) {
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {tags.map(tag => (
-            <span key={tag} className="rounded-md bg-[var(--surface-alt)] px-3 py-1 text-xs text-[var(--muted)]">
+            <a key={tag} href={`/browse?tag=${encodeURIComponent(tag)}`} className="rounded-md bg-[var(--surface-alt)] px-3 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--border)] transition-colors">
               {tag}
-            </span>
+            </a>
           ))}
+        </div>
+      )}
+
+      {/* More by this author */}
+      {moreByAuthor.length > 0 && (
+        <div className="mt-10 pt-8 border-t border-[var(--border)]">
+          <h2 className="text-sm font-semibold text-[var(--muted)] mb-4">More by @{resource.author_handle}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {moreByAuthor.map(r => {
+              const cat = CATEGORIES.find(c => c.name === r.categories?.name);
+              return (
+                <a key={r.id} href={`/resource/${r.id}`} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--accent)]/40 transition-colors">
+                  <h3 className="font-medium text-sm leading-snug mb-1 line-clamp-2">{r.title}</h3>
+                  <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                    {cat && <span style={{ color: cat.color }}>{cat.icon} {cat.name}</span>}
+                    {r.ai_quality_score && <span>{r.ai_quality_score}/10</span>}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Related resources (same category) */}
+      {relatedResources.length > 0 && (
+        <div className="mt-10 pt-8 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-[var(--muted)]">
+              More in {category?.name || 'this category'}
+            </h2>
+            {category && (
+              <a href={`/category/${category.slug}`} className="text-xs text-[var(--accent)] hover:underline">
+                View all →
+              </a>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {relatedResources.map(r => {
+              const cat = CATEGORIES.find(c => c.name === r.categories?.name);
+              return (
+                <a key={r.id} href={`/resource/${r.id}`} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--accent)]/40 transition-colors">
+                  <h3 className="font-medium text-sm leading-snug mb-1 line-clamp-2">{r.title}</h3>
+                  <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                    {r.author_handle && <span>@{r.author_handle}</span>}
+                    {r.ai_quality_score && <span>{r.ai_quality_score}/10</span>}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

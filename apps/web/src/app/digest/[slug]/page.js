@@ -12,6 +12,7 @@ const TYPE_LABEL = {
   weekly: 'Weekly Digest',
   monthly: 'Monthly Digest',
   quick: 'Quick Update',
+  editorial: 'Editorial',
 };
 
 const TYPE_COLOR = {
@@ -19,7 +20,34 @@ const TYPE_COLOR = {
   weekly: 'bg-purple-50 text-purple-700',
   monthly: 'bg-emerald-50 text-emerald-700',
   quick: 'bg-red-50 text-red-700',
+  editorial: 'bg-amber-50 text-amber-700',
 };
+
+async function getAdjacentArticles(article) {
+  if (!article?.published_at) return { prev: null, next: null };
+  const supabase = createServerClient();
+
+  const [{ data: prevData }, { data: nextData }] = await Promise.all([
+    supabase
+      .from('articles')
+      .select('slug, title, article_type')
+      .eq('status', 'published')
+      .lt('published_at', article.published_at)
+      .order('published_at', { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from('articles')
+      .select('slug, title, article_type')
+      .eq('status', 'published')
+      .gt('published_at', article.published_at)
+      .order('published_at', { ascending: true })
+      .limit(1)
+      .single(),
+  ]);
+
+  return { prev: prevData || null, next: nextData || null };
+}
 
 async function getArticle(slug, allowDraft = false) {
   // Draft preview requires service role to bypass RLS (anon can only read published)
@@ -27,7 +55,7 @@ async function getArticle(slug, allowDraft = false) {
   let query = supabase
     .from('articles')
     .select(`
-      id, slug, title, article_type, content, meta_description, og_title,
+      id, slug, title, article_type, content, meta_description, og_title, og_background_url,
       status, published_at, period_start, period_end,
       article_resources ( position, resource_id, resources ( title, tweet_url, author_handle, primary_url, content_type ) )
     `)
@@ -53,6 +81,25 @@ export async function generateMetadata({ params, searchParams }) {
   const article = await getArticle(slug, isAdminPreview(sp));
   if (!article) return {};
 
+  const ogTitle = article.og_title || article.title;
+  const resourceCount = (article.article_resources || []).length;
+
+  // Editorial articles use the background image directly (no overlay)
+  let ogImageUrl;
+  if (article.article_type === 'editorial' && article.og_background_url) {
+    ogImageUrl = article.og_background_url;
+  } else {
+    const ogImageParams = new URLSearchParams({
+      title: ogTitle,
+      type: article.article_type || 'daily',
+      count: String(resourceCount),
+    });
+    if (article.og_background_url) {
+      ogImageParams.set('bg', article.og_background_url);
+    }
+    ogImageUrl = `https://claudelists.com/api/og?${ogImageParams.toString()}`;
+  }
+
   return {
     title: `${article.title} - ClaudeLists`,
     description: article.meta_description || article.title,
@@ -60,18 +107,25 @@ export async function generateMetadata({ params, searchParams }) {
       canonical: `https://claudelists.com/digest/${article.slug}`,
     },
     openGraph: {
-      title: article.og_title || article.title,
+      title: ogTitle,
       description: article.meta_description || article.title,
       url: `https://claudelists.com/digest/${article.slug}`,
       type: 'article',
       publishedTime: article.published_at,
       section: TYPE_LABEL[article.article_type] || 'Digest',
       authors: ['ClaudeLists'],
+      images: [{
+        url: ogImageUrl,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      }],
     },
     twitter: {
       card: 'summary_large_image',
-      title: article.og_title || article.title,
+      title: ogTitle,
       description: article.meta_description || article.title,
+      images: [ogImageUrl],
     },
   };
 }
@@ -84,6 +138,8 @@ export default async function ArticlePage({ params, searchParams }) {
 
   if (!article) notFound();
 
+  const { prev, next } = article.status === 'published' ? await getAdjacentArticles(article) : { prev: null, next: null };
+
   marked.setOptions({
     breaks: true,
     gfm: true,
@@ -94,10 +150,11 @@ export default async function ArticlePage({ params, searchParams }) {
   content = content.replace(/^#\s+.*\n+/, '');
   let htmlContent = marked.parse(content);
 
-  // Strip hyperlinks from H2 headings (tweet embeds replace them)
+  // Strip external hyperlinks from H2 headings (tweet embeds replace them)
+  // Keep internal /resource/ links for internal linking
   htmlContent = htmlContent.replace(
-    /<h2><a\s+href="[^"]*">([^<]*)<\/a><\/h2>/g,
-    '<h2>$1</h2>'
+    /<h2><a\s+href="((?!https:\/\/claudelists\.com\/resource\/)[^"]*)">([^<]*)<\/a><\/h2>/g,
+    '<h2>$2</h2>'
   );
 
   const articleUrl = `https://claudelists.com/digest/${article.slug}`;
@@ -150,14 +207,29 @@ export default async function ArticlePage({ params, searchParams }) {
     ? new Date(article.published_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
 
-  const ogImageUrl = `/digest/${article.slug}/opengraph-image`;
+  // Build OG image URL from query params (fast, no DB call at render time)
+  const resourceCount = (article.article_resources || []).length;
+  let pageOgImageUrl;
+  if (article.article_type === 'editorial' && article.og_background_url) {
+    pageOgImageUrl = article.og_background_url;
+  } else {
+    const ogParams = new URLSearchParams({
+      title: article.og_title || article.title,
+      type: article.article_type || 'daily',
+      count: String(resourceCount),
+    });
+    if (article.og_background_url) {
+      ogParams.set('bg', article.og_background_url);
+    }
+    pageOgImageUrl = `/api/og?${ogParams.toString()}`;
+  }
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: article.title,
     description: article.meta_description || article.title,
-    image: `https://claudelists.com${ogImageUrl}`,
+    image: pageOgImageUrl.startsWith('http') ? pageOgImageUrl : `https://claudelists.com${pageOgImageUrl}`,
     datePublished: article.published_at,
     author: { '@type': 'Organization', name: 'ClaudeLists', url: 'https://claudelists.com' },
     publisher: { '@type': 'Organization', name: 'ClaudeLists', url: 'https://claudelists.com' },
@@ -167,6 +239,16 @@ export default async function ArticlePage({ params, searchParams }) {
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-[var(--muted)] pt-6 mb-4">
+        <a href="/" className="hover:text-[var(--foreground)]">Home</a>
+        <span>/</span>
+        <a href="/digest" className="hover:text-[var(--foreground)]">Digest</a>
+        <span>/</span>
+        <span className="text-[var(--foreground)] truncate max-w-[250px]">{article.title}</span>
+      </div>
+
       {isDraftPreview && article.status === 'draft' && (
         <div className="mb-6 rounded-lg border-2 border-amber-400 bg-amber-50 px-4 py-3 text-center">
           <span className="text-sm font-semibold text-amber-800">DRAFT PREVIEW</span>
@@ -176,14 +258,25 @@ export default async function ArticlePage({ params, searchParams }) {
       <article className="py-10">
         {/* OG hero image */}
         <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
-          <Image
-            src={ogImageUrl}
-            alt={article.title}
-            width={1200}
-            height={630}
-            className="w-full h-auto"
-            priority
-          />
+          {article.article_type === 'editorial' && article.og_background_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={article.og_background_url}
+              alt={article.title}
+              width={1200}
+              height={630}
+              className="w-full h-auto"
+            />
+          ) : (
+            <Image
+              src={pageOgImageUrl}
+              alt={article.title}
+              width={1200}
+              height={630}
+              className="w-full h-auto"
+              priority
+            />
+          )}
         </div>
 
         {/* Header */}
@@ -218,11 +311,31 @@ export default async function ArticlePage({ params, searchParams }) {
         {/* Activates inline tweet embeds in the article content */}
         <TweetEmbeds />
 
-        {/* Back link */}
+        {/* Navigation */}
         <div className="mt-12 pt-6 border-t border-[var(--border)]">
-          <a href="/digest" className="text-sm text-[var(--accent)] hover:underline">
-            &larr; All digests
-          </a>
+          <div className="flex items-center justify-between mb-4">
+            {prev ? (
+              <a href={`/digest/${prev.slug}`} className="group flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors max-w-[45%]">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="shrink-0">
+                  <path d="M10 12l-4-4 4-4" />
+                </svg>
+                <span className="truncate">{prev.title}</span>
+              </a>
+            ) : <span />}
+            {next ? (
+              <a href={`/digest/${next.slug}`} className="group flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors text-right max-w-[45%]">
+                <span className="truncate">{next.title}</span>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="shrink-0">
+                  <path d="M6 4l4 4-4 4" />
+                </svg>
+              </a>
+            ) : <span />}
+          </div>
+          <div className="text-center">
+            <a href="/digest" className="text-xs text-[var(--accent)] hover:underline">
+              All digests
+            </a>
+          </div>
         </div>
       </article>
     </div>

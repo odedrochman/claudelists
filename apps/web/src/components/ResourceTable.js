@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CATEGORIES } from '../lib/categories';
-import { timeAgo, TYPE_ICONS, getScoreStyle, formatContentType } from '../lib/resource-utils';
+import { timeAgo, TYPE_ICONS, getScoreStyle, formatContentType, SKILL_LEVELS, CONTENT_FORMATS } from '../lib/resource-utils';
 
 function SortArrow({ active, ascending }) {
   if (!active) {
@@ -51,6 +52,22 @@ function ExpandedPanel({ resource }) {
             <p className="text-sm text-[var(--muted)] mb-3">{resource.summary}</p>
           )}
 
+          {/* Skill level + content format */}
+          {(resource.skill_level || resource.content_format) && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {resource.skill_level && SKILL_LEVELS[resource.skill_level] && (
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${SKILL_LEVELS[resource.skill_level].color}`}>
+                  {SKILL_LEVELS[resource.skill_level].label}
+                </span>
+              )}
+              {resource.content_format && CONTENT_FORMATS[resource.content_format] && (
+                <span className="inline-flex items-center rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[var(--muted)]">
+                  {CONTENT_FORMATS[resource.content_format].label}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Tags */}
           {(displayTags.length > 0 || isEngagementGated) && (
             <div className="flex flex-wrap gap-1 mb-3">
@@ -60,9 +77,9 @@ function ExpandedPanel({ resource }) {
                 </span>
               )}
               {displayTags.map(tag => (
-                <span key={tag} className="text-[10px] rounded-md bg-[var(--background)] px-1.5 py-0.5 text-[var(--muted)]">
+                <a key={tag} href={`/browse?tag=${encodeURIComponent(tag)}`} className="text-[10px] rounded-md bg-[var(--background)] px-1.5 py-0.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--border)] transition-colors" onClick={e => e.stopPropagation()}>
                   {tag}
-                </span>
+                </a>
               ))}
             </div>
           )}
@@ -330,13 +347,23 @@ export default function ResourceTable({ resources, currentSort, sortHrefs, compa
                     {timeAgo(resource.tweet_created_at || resource.discovered_at)}
                   </td>
                 </tr>
+                <AnimatePresence>
                 {isExpanded && (
                   <tr>
                     <td colSpan={compact ? 6 : 7} className="p-0">
-                      <ExpandedPanel resource={resource} />
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <ExpandedPanel resource={resource} />
+                      </motion.div>
                     </td>
                   </tr>
                 )}
+                </AnimatePresence>
               </tbody>
             );
           })}

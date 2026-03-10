@@ -22,6 +22,8 @@ function generateSlug(title) {
 function formatResourcesForPrompt(resources) {
   return resources.map((r, i) => ({
     position: i + 1,
+    id: r.id,
+    detail_url: `https://claudelists.com/resource/${r.id}`,
     title: r.title,
     summary: r.summary,
     author_handle: r.author_handle || null,
@@ -76,7 +78,9 @@ SHORT INTRO (2-3 sentences max). One line about the theme, one about what reader
 
 Then for EACH resource, write a section like this (use ## heading):
 
-## Resource Title
+## [Resource Title](detail_url)
+
+Where detail_url is the resource's detail_url from the data (e.g. https://claudelists.com/resource/123). This links the heading to the resource's page on ClaudeLists.
 
 2-3 sentences: what it does and why it matters. Be specific, give a concrete example.
 
@@ -94,7 +98,7 @@ FORMATTING RULES:
 - Use --- (horizontal rule) between each resource section for visual separation
 - Use [link text](url) for ALL URLs. Never show raw URLs.
 - Author handles MUST be hyperlinked: [@handle](https://x.com/handle)
-- Resource titles in ## headings should be PLAIN TEXT (no hyperlinks). The tweet embed provides the link.
+- Resource titles in ## headings MUST link to their ClaudeLists detail_url: ## [Title](detail_url). Use the detail_url from the resource data.
 - Keep it SHORT. Each resource section should be 4-6 lines, not paragraphs of text.
 - Total article: aim for 40-50 lines. Concise and scannable, not essay-length.
 - Bold labels ("**Who it's for:**", "**Quick take:**") for scannability.
@@ -107,6 +111,7 @@ FORMATTING RULES:
 CRITICAL RULES:
 - NEVER use em dashes. Use periods, commas, or parentheses.
 - NEVER use: "leveraging", "harnessing", "AI-powered", "game-changer", "revolutionary", "cutting-edge", "unlock", "empower", "delve", "tapestry", "robust", "seamless", "streamline", "landscape", "paradigm"
+- NEVER reference or link to ClaudeLists.com articles, digests, or pages as sources. Only use the external resources provided above. Do not cite claudelists.com URLs (except for the submit page CTA).
 - Write like a knowledgeable friend, not a press release.
 - ALL @handles MUST be markdown hyperlinks to their X profile.
 - ALL resource URLs MUST be markdown hyperlinks, never raw.
@@ -115,21 +120,12 @@ CRITICAL RULES:
 Return ONLY valid JSON. No markdown fences, no extra text.`;
 }
 
-function buildWeeklyPrompt(dailyArticles, resources, weekStart, weekEnd) {
-  const articleSummaries = dailyArticles.map(a => ({
-    title: a.title,
-    resourceCount: (a.article_resources || []).length,
-    publishedAt: a.published_at,
-  }));
-
+function buildWeeklyPrompt(resources, weekStart, weekEnd) {
   const resourceData = formatResourcesForPrompt(resources);
 
   return `You are the editor of ClaudeLists.com (@claudelists on X), writing the WEEKLY DIGEST for ${weekStart} to ${weekEnd}.
 
-This week: ${dailyArticles.length} daily digests, ${resources.length} resources.
-
-Daily digests published:
-${JSON.stringify(articleSummaries, null, 2)}
+This week: ${resources.length} resources discovered.
 
 All resources this week:
 ${JSON.stringify(resourceData, null, 2)}
@@ -172,6 +168,7 @@ FORMATTING: Same rules as daily (hyperlinks everywhere, no raw URLs, --- between
 CRITICAL RULES:
 - NEVER use em dashes. Use periods, commas, or parentheses.
 - NEVER use: "leveraging", "harnessing", "AI-powered", "game-changer", "revolutionary", "cutting-edge", "unlock", "empower", "delve", "tapestry", "robust", "seamless", "streamline", "landscape", "paradigm"
+- NEVER reference or link to ClaudeLists.com articles, digests, or pages as sources. Only use the external resources provided above. Do not cite claudelists.com URLs (except for the submit page CTA).
 - ALL @handles and URLs MUST be markdown hyperlinks.
 
 Return ONLY valid JSON.`;
@@ -283,35 +280,7 @@ async function generateWeekly(supabase) {
   const weekStart = start.toISOString().split('T')[0];
   const weekEnd = end.toISOString().split('T')[0];
 
-  // 2. Fetch published daily articles in range
-  const { data: articles, error: artErr } = await supabase
-    .from('articles')
-    .select(`
-      id, slug, title, content, article_type, published_at,
-      article_resources ( resource_id, position )
-    `)
-    .eq('article_type', 'daily')
-    .eq('status', 'published')
-    .gte('published_at', weekStart)
-    .lte('published_at', weekEnd + 'T23:59:59')
-    .order('published_at', { ascending: true });
-
-  if (artErr) throw new Error(`Failed to fetch daily articles: ${artErr.message}`);
-  if (!articles || articles.length === 0) {
-    return { error: 'No published daily articles found for the past week' };
-  }
-
-  // 3. Collect resource IDs from daily articles
-  const resourceIds = [];
-  for (const article of articles) {
-    for (const ar of (article.article_resources || [])) {
-      if (!resourceIds.includes(ar.resource_id)) {
-        resourceIds.push(ar.resource_id);
-      }
-    }
-  }
-
-  // 4. Fetch full resource data
+  // 2. Fetch resources featured in daily digests during this week
   const { data: resources, error: resErr } = await supabase
     .from('resources')
     .select(`
@@ -320,12 +289,21 @@ async function generateWeekly(supabase) {
       categories ( name, slug ),
       resource_tags ( tags ( name ) )
     `)
-    .in('id', resourceIds);
+    .eq('status', 'published')
+    .eq('featured_in_daily', true)
+    .gte('featured_daily_at', weekStart)
+    .lte('featured_daily_at', weekEnd + 'T23:59:59')
+    .order('ai_quality_score', { ascending: false, nullsFirst: false });
 
   if (resErr) throw new Error(`Failed to fetch resources: ${resErr.message}`);
+  if (!resources || resources.length === 0) {
+    return { error: 'No featured resources found for the past week' };
+  }
 
-  // 5. Generate with Claude
-  const prompt = buildWeeklyPrompt(articles, resources || [], weekStart, weekEnd);
+  const resourceIds = resources.map(r => r.id);
+
+  // 3. Generate with Claude (using only external resources, no self-references)
+  const prompt = buildWeeklyPrompt(resources, weekStart, weekEnd);
   const raw = await callClaude(prompt, 6144);
   const result = parseClaudeJson(raw);
 
@@ -377,7 +355,6 @@ async function generateWeekly(supabase) {
   return {
     article: { id: article.id, slug: article.slug, title: article.title },
     resourceCount: (resources || []).length,
-    dailyCount: articles.length,
     weekRange: `${weekStart} to ${weekEnd}`,
   };
 }
@@ -401,7 +378,8 @@ export async function POST(request) {
   try {
     let result;
     if (type === 'daily') {
-      result = await generateDaily(supabase, Math.max(2, Math.min(7, count || 5)));
+      const dailyCount = Math.floor(Math.random() * 4) + 2; // 2-5 resources
+      result = await generateDaily(supabase, dailyCount);
     } else {
       result = await generateWeekly(supabase);
     }
