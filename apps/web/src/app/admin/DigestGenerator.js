@@ -22,7 +22,7 @@ export default function DigestGenerator({ adminKey, unfeaturedCount }) {
       const res = await fetch(`/api/admin/generate-digest?key=${adminKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, count: 5 }),
+        body: JSON.stringify({ type, count: Math.floor(Math.random() * 4) + 2 }),
       });
 
       const data = await res.json();

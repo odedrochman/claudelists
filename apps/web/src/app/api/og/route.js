@@ -1,48 +1,30 @@
 import { ImageResponse } from 'next/og';
-import { createServiceClient } from '../../../lib/supabase';
 
 export const runtime = 'edge';
-export const alt = 'ClaudeLists Digest';
-export const size = { width: 1200, height: 630 };
-export const contentType = 'image/png';
 
 const TYPE_CONFIG = {
-  daily: { label: 'DAILY DIGEST', accent: '#E8926E', accentDark: '#B56A45', glowColor: '#E8926E' },
-  weekly: { label: 'WEEKLY ROUNDUP', accent: '#A78BFA', accentDark: '#7C5FC7', glowColor: '#A78BFA' },
-  monthly: { label: 'MONTHLY RECAP', accent: '#34D399', accentDark: '#1F9E6E', glowColor: '#34D399' },
-  quick: { label: 'QUICK UPDATE', accent: '#F97316', accentDark: '#C25A0E', glowColor: '#F97316' },
+  daily: { label: 'DAILY DIGEST', accent: '#E8926E', accentDark: '#B56A45' },
+  weekly: { label: 'WEEKLY ROUNDUP', accent: '#A78BFA', accentDark: '#7C5FC7' },
+  monthly: { label: 'MONTHLY RECAP', accent: '#34D399', accentDark: '#1F9E6E' },
+  quick: { label: 'QUICK UPDATE', accent: '#F97316', accentDark: '#C25A0E' },
 };
 
-export default async function OGImage({ params }) {
-  const { slug } = await params;
-  const supabase = createServiceClient();
-  const { data: article } = await supabase
-    .from('articles')
-    .select('title, article_type, og_title, published_at, og_background_url, article_resources ( resource_id )')
-    .eq('slug', slug)
-    .single();
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const title = searchParams.get('title') || 'ClaudeLists Digest';
+  const type = searchParams.get('type') || 'daily';
+  const count = parseInt(searchParams.get('count') || '0', 10);
+  const bgUrl = searchParams.get('bg') || '';
 
-  if (!article) {
-    return new ImageResponse(
-      (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#111014', fontFamily: 'system-ui' }}>
-          <div style={{ fontSize: 32, color: '#555' }}>Article not found</div>
-        </div>
-      ),
-      { ...size }
-    );
-  }
+  const config = TYPE_CONFIG[type] || TYPE_CONFIG.daily;
+  const showBigNumber = count > 1;
 
-  const config = TYPE_CONFIG[article.article_type] || TYPE_CONFIG.daily;
-  const resourceCount = (article.article_resources || []).length;
-  const title = article.og_title || article.title || 'Untitled';
   let displayTitle = title;
   if (title.length > 65) {
     const truncated = title.slice(0, 62);
     const lastSpace = truncated.lastIndexOf(' ');
     displayTitle = (lastSpace > 40 ? truncated.slice(0, lastSpace) : truncated) + '...';
   }
-  const showBigNumber = resourceCount > 1;
 
   return new ImageResponse(
     (
@@ -58,11 +40,11 @@ export default async function OGImage({ params }) {
         }}
       >
         {/* Background: AI image or decorative fallback */}
-        {article.og_background_url ? (
+        {bgUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={article.og_background_url}
+              src={bgUrl}
               alt=""
               width={1200}
               height={630}
@@ -101,7 +83,7 @@ export default async function OGImage({ params }) {
                 background: 'linear-gradient(135deg, #0F0D13 0%, #1A1520 40%, #12101A 100%)',
               }}
             />
-            {/* Large decorative glow - top left */}
+            {/* Large decorative glow */}
             <div
               style={{
                 position: 'absolute',
@@ -114,7 +96,7 @@ export default async function OGImage({ params }) {
                 background: `radial-gradient(circle, ${config.accent}30 0%, transparent 70%)`,
               }}
             />
-            {/* Medium glow - center right */}
+            {/* Medium glow */}
             <div
               style={{
                 position: 'absolute',
@@ -127,20 +109,7 @@ export default async function OGImage({ params }) {
                 background: `radial-gradient(circle, ${config.accent}22 0%, transparent 60%)`,
               }}
             />
-            {/* Small accent glow - bottom left */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: -40,
-                left: 200,
-                width: 300,
-                height: 300,
-                display: 'flex',
-                borderRadius: 150,
-                background: `radial-gradient(circle, ${config.accentDark}10 0%, transparent 70%)`,
-              }}
-            />
-            {/* Diagonal accent line */}
+            {/* Top accent line */}
             <div
               style={{
                 position: 'absolute',
@@ -152,7 +121,7 @@ export default async function OGImage({ params }) {
                 background: `linear-gradient(90deg, ${config.accent} 0%, transparent 60%)`,
               }}
             />
-            {/* Vertical accent line left */}
+            {/* Left accent line */}
             <div
               style={{
                 position: 'absolute',
@@ -163,57 +132,6 @@ export default async function OGImage({ params }) {
                 display: 'flex',
                 background: `linear-gradient(180deg, ${config.accent} 0%, ${config.accent}40 50%, transparent 100%)`,
               }}
-            />
-            {/* Subtle grid dots pattern */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 40,
-                right: 40,
-                width: 160,
-                height: 160,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 20,
-                opacity: 0.25,
-              }}
-            >
-              {Array.from({ length: 36 }).map((_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 4,
-                    height: 4,
-                    borderRadius: 2,
-                    background: config.accent,
-                    display: 'flex',
-                  }}
-                />
-              ))}
-            </div>
-            {/* Claude sparkle - large */}
-            <img
-              src={`data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 0 C52 40, 60 48, 100 50 C60 52, 52 60, 50 100 C48 60, 40 52, 0 50 C40 48, 48 40, 50 0Z" fill="${config.accent}" opacity="0.3"/><circle cx="50" cy="50" r="8" fill="${config.accent}" opacity="0.5"/></svg>`)}`}
-              width={140}
-              height={140}
-              alt=""
-              style={{ position: 'absolute', top: 130, right: 280, width: 140, height: 140 }}
-            />
-            {/* Claude sparkle - medium */}
-            <img
-              src={`data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 0 C52 40, 60 48, 100 50 C60 52, 52 60, 50 100 C48 60, 40 52, 0 50 C40 48, 48 40, 50 0Z" fill="${config.accent}" opacity="0.2"/><circle cx="50" cy="50" r="6" fill="${config.accent}" opacity="0.35"/></svg>`)}`}
-              width={70}
-              height={70}
-              alt=""
-              style={{ position: 'absolute', bottom: 150, right: 100, width: 70, height: 70 }}
-            />
-            {/* Claude sparkle - small */}
-            <img
-              src={`data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 0 C52 40, 60 48, 100 50 C60 52, 52 60, 50 100 C48 60, 40 52, 0 50 C40 48, 48 40, 50 0Z" fill="${config.accent}" opacity="0.25"/><circle cx="50" cy="50" r="5" fill="${config.accent}" opacity="0.4"/></svg>`)}`}
-              width={40}
-              height={40}
-              alt=""
-              style={{ position: 'absolute', top: 65, right: 480, width: 40, height: 40 }}
             />
           </>
         )}
@@ -228,7 +146,7 @@ export default async function OGImage({ params }) {
             position: 'relative',
           }}
         >
-          {/* LEFT: Text content - safe zone: 90px bottom padding */}
+          {/* LEFT: Text content */}
           <div
             style={{
               display: 'flex',
@@ -240,7 +158,6 @@ export default async function OGImage({ params }) {
           >
             {/* Top row: badge + brand */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              {/* Type badge */}
               <div
                 style={{
                   display: 'flex',
@@ -257,7 +174,6 @@ export default async function OGImage({ params }) {
                 {config.label}
               </div>
 
-              {/* Brand - moved to top right (safe from bottom crop) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div
                   style={{
@@ -281,7 +197,7 @@ export default async function OGImage({ params }) {
               </div>
             </div>
 
-            {/* Title - vertically centered in remaining space */}
+            {/* Title */}
             <div
               style={{
                 display: 'flex',
@@ -296,7 +212,7 @@ export default async function OGImage({ params }) {
               {displayTitle}
             </div>
 
-            {/* Bottom accent line + resource count hint */}
+            {/* Bottom accent + resource count */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div
                 style={{
@@ -307,15 +223,15 @@ export default async function OGImage({ params }) {
                   display: 'flex',
                 }}
               />
-              {resourceCount > 0 && (
+              {count > 0 && (
                 <div style={{ display: 'flex', fontSize: 16, fontWeight: 700, color: `${config.accent}CC`, letterSpacing: 1 }}>
-                  {resourceCount} {resourceCount === 1 ? 'RESOURCE' : 'RESOURCES'} FEATURED
+                  {count} {count === 1 ? 'RESOURCE' : 'RESOURCES'} FEATURED
                 </div>
               )}
             </div>
           </div>
 
-          {/* RIGHT: Bold colored panel with number */}
+          {/* RIGHT: Big number panel */}
           {showBigNumber && (
             <div
               style={{
@@ -329,7 +245,6 @@ export default async function OGImage({ params }) {
                 position: 'relative',
               }}
             >
-              {/* Panel glow */}
               <div
                 style={{
                   position: 'absolute',
@@ -343,7 +258,6 @@ export default async function OGImage({ params }) {
                   opacity: 0.1,
                 }}
               />
-              {/* Big number */}
               <div
                 style={{
                   display: 'flex',
@@ -355,9 +269,8 @@ export default async function OGImage({ params }) {
                   position: 'relative',
                 }}
               >
-                {resourceCount}
+                {count}
               </div>
-              {/* Label */}
               <div
                 style={{
                   display: 'flex',
@@ -371,9 +284,8 @@ export default async function OGImage({ params }) {
               >
                 PICKS
               </div>
-              {/* Decorative dots */}
               <div style={{ display: 'flex', gap: 8, marginTop: 20, position: 'relative' }}>
-                {Array.from({ length: Math.min(resourceCount, 5) }).map((_, i) => (
+                {Array.from({ length: Math.min(count, 5) }).map((_, i) => (
                   <div
                     key={i}
                     style={{
@@ -392,6 +304,6 @@ export default async function OGImage({ params }) {
         </div>
       </div>
     ),
-    { ...size }
+    { width: 1200, height: 630 }
   );
 }
