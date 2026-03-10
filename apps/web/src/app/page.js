@@ -2,6 +2,9 @@ import { createServerClient } from '../lib/supabase';
 import ResourceTable from '../components/ResourceTable';
 import CategoryNav from '../components/CategoryNav';
 import ArticleCard from '../components/ArticleCard';
+import AnimatedHero, { AnimatedHeroItem } from '../components/animations/AnimatedHero';
+import FadeIn from '../components/animations/FadeIn';
+import { StaggerContainer, StaggerItem } from '../components/animations/StaggerChildren';
 
 export const revalidate = 300;
 
@@ -77,56 +80,68 @@ export default async function HomePage() {
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       {/* Hero */}
       <section className="py-16 sm:py-20 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-3 py-1 text-xs text-[var(--accent)] font-medium mb-6">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-          Updated daily from the community
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          <span className="text-[var(--accent)]">Claude</span> moves fast. This is how you keep up.
-        </h1>
-        <p className="mt-4 text-lg text-[var(--muted)] max-w-2xl mx-auto leading-relaxed">
-          A community-curated directory of MCP servers, prompts, tools, and configs. New resources every day, scored and organized.
-        </p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <a
-            href="/browse"
-            className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-          >
-            Explore Resources
-          </a>
-          <a
-            href="/submit"
-            className="rounded-lg border border-[var(--border)] px-6 py-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] transition-colors"
-          >
-            Submit a Resource
-          </a>
-        </div>
+        <AnimatedHero>
+          <AnimatedHeroItem>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-3 py-1 text-xs text-[var(--accent)] font-medium mb-6">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+              Updated daily from the community
+            </div>
+          </AnimatedHeroItem>
+          <AnimatedHeroItem>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              <span className="text-[var(--accent)]">Claude</span> moves fast. This is how you keep up.
+            </h1>
+          </AnimatedHeroItem>
+          <AnimatedHeroItem>
+            <p className="mt-4 text-lg text-[var(--muted)] max-w-2xl mx-auto leading-relaxed">
+              A community-curated directory of MCP servers, prompts, tools, and configs. New resources every day, scored and organized.
+            </p>
+          </AnimatedHeroItem>
+          <AnimatedHeroItem>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href="/browse"
+                className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+              >
+                Explore Resources
+              </a>
+              <a
+                href="/submit"
+                className="rounded-lg border border-[var(--border)] px-6 py-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] transition-colors"
+              >
+                Submit a Resource
+              </a>
+            </div>
+          </AnimatedHeroItem>
+        </AnimatedHero>
       </section>
 
       {/* Categories */}
-      <section className="mb-10">
+      <FadeIn className="mb-10">
         <CategoryNav />
-      </section>
+      </FadeIn>
 
       {/* Latest Articles */}
       {latestArticles.length > 0 && (
-        <section className="mb-12">
+        <FadeIn className="mb-12" delay={0.1}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Latest Digest</h2>
             <a href="/digest" className="text-sm text-[var(--accent)] hover:underline">
               All digests →
             </a>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <StaggerContainer className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {latestArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <StaggerItem key={article.id}>
+                <ArticleCard article={article} />
+              </StaggerItem>
             ))}
-          </div>
-        </section>
+          </StaggerContainer>
+        </FadeIn>
       )}
 
       {/* Featured Resources (Top Rated) */}
-      <section className="mb-12">
+      <FadeIn className="mb-12" delay={0.15}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Featured Resources</h2>
           <a href="/browse?sort=score" className="text-sm text-[var(--accent)] hover:underline">
@@ -140,11 +155,11 @@ export default async function HomePage() {
             No resources yet. Check back soon!
           </p>
         )}
-      </section>
+      </FadeIn>
 
       {/* Recent Additions */}
       {recentUnique.length > 0 && (
-        <section className="mb-12">
+        <FadeIn className="mb-12" delay={0.2}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Recent Additions</h2>
             <a href="/browse?sort=newest" className="text-sm text-[var(--accent)] hover:underline">
@@ -152,32 +167,34 @@ export default async function HomePage() {
             </a>
           </div>
           <ResourceTable resources={recentUnique} compact />
-        </section>
+        </FadeIn>
       )}
 
       {/* CTA */}
-      <section className="my-16 text-center rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-8 sm:p-10">
-        <h2 className="text-lg font-semibold mb-2">Found a great Claude resource?</h2>
-        <p className="text-sm text-[var(--muted)] mb-5 max-w-md mx-auto">
-          Help grow the directory. Submit it directly or share on X and tag <strong className="text-[var(--foreground)]">@claudelists</strong>.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <a
-            href="/submit"
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] text-white px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            Submit a Resource
-          </a>
-          <a
-            href="https://x.com/claudelists"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-5 py-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] transition-colors"
-          >
-            <XIcon /> Follow @claudelists
-          </a>
+      <FadeIn className="my-16" delay={0.25}>
+        <div className="text-center rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-8 sm:p-10">
+          <h2 className="text-lg font-semibold mb-2">Found a great Claude resource?</h2>
+          <p className="text-sm text-[var(--muted)] mb-5 max-w-md mx-auto">
+            Help grow the directory. Submit it directly or share on X and tag <strong className="text-[var(--foreground)]">@claudelists</strong>.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="/submit"
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] text-white px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Submit a Resource
+            </a>
+            <a
+              href="https://x.com/claudelists"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-5 py-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] transition-colors"
+            >
+              <XIcon /> Follow @claudelists
+            </a>
+          </div>
         </div>
-      </section>
+      </FadeIn>
     </div>
   );
 }

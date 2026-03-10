@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatContentType, getScoreStyle } from '../lib/resource-utils';
 
 export default function SearchBar({ className = '' }) {
@@ -180,9 +181,14 @@ export default function SearchBar({ className = '' }) {
       </form>
 
       {/* Results dropdown */}
+      <AnimatePresence>
       {isOpen && (
-        <div
+        <motion.div
           ref={dropdownRef}
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
           className="absolute z-50 top-full left-0 right-0 mt-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden flex flex-col"
           role="listbox"
         >
@@ -256,8 +262,9 @@ export default function SearchBar({ className = '' }) {
             </svg>
             See all results for &quot;{query}&quot;
           </button>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Loading spinner */}
       {loading && query.length >= 2 && (

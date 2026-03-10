@@ -1,5 +1,7 @@
 import { createServerClient } from '../../lib/supabase';
 import ArticleCard from '../../components/ArticleCard';
+import FadeIn from '../../components/animations/FadeIn';
+import { StaggerContainer, StaggerItem } from '../../components/animations/StaggerChildren';
 
 export const revalidate = 300;
 
@@ -44,18 +46,20 @@ export default async function ArticlesPage({ searchParams }) {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <section className="py-10">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Digest</h1>
-            <p className="text-sm text-[var(--muted)] mt-1">
-              Curated coverage of the Claude ecosystem, updated daily.
-            </p>
+        <FadeIn>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Digest</h1>
+              <p className="text-sm text-[var(--muted)] mt-1">
+                Curated coverage of the Claude ecosystem, updated daily.
+              </p>
+            </div>
           </div>
-        </div>
+        </FadeIn>
 
         {/* Type filter */}
         <div className="flex gap-2 mb-8">
-          {['all', 'daily', 'weekly', 'monthly'].map((t) => (
+          {['all', 'daily', 'weekly', 'monthly', 'editorial'].map((t) => (
             <a
               key={t}
               href={`/digest${t === 'all' ? '' : `?type=${t}`}`}
@@ -75,11 +79,13 @@ export default async function ArticlesPage({ searchParams }) {
             <p className="text-[var(--muted)] text-lg">No digests yet. Check back soon!</p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <StaggerContainer className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <StaggerItem key={article.id}>
+                <ArticleCard article={article} />
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerContainer>
         )}
       </section>
     </div>
