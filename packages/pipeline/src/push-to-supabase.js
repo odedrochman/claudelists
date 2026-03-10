@@ -136,6 +136,9 @@ function buildResourceRow(bookmark, categoryId) {
     markdown_content: bookmark._markdownContent || null,
     tweet_created_at: bookmark.createdAt || null,
     ai_quality_score: bookmark.ai_quality_score || null,
+    claude_tool: bookmark.claude_tool || null,
+    skill_level: bookmark.skill_level || null,
+    content_format: bookmark.content_format || null,
     status: 'published',
   };
 }
@@ -193,9 +196,9 @@ export async function pushToSupabase(analyzedBookmarks, options = {}) {
       // Resolve category
       const categoryId = categories.get(bookmark.category);
       if (!categoryId) {
-        console.warn(`  Unknown category "${bookmark.category}" for tweet ${bookmark.id}, using Discussion & Opinion`);
+        console.warn(`  Unknown category "${bookmark.category}" for tweet ${bookmark.id}, using Community Showcase`);
       }
-      const resolvedCategoryId = categoryId || categories.get('Discussion & Opinion');
+      const resolvedCategoryId = categoryId || categories.get('Community Showcase');
 
       // Build and insert resource
       const row = buildResourceRow(bookmark, resolvedCategoryId);

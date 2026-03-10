@@ -8,17 +8,19 @@ function checkAdminKey(request) {
 }
 
 const CATEGORIES = [
-  'MCP Servers',
-  'Prompts & Techniques',
-  'CLAUDE.md & Config',
+  'Claude Code',
+  'Claude Cowork',
+  'Specialized Prompts',
   'Workflows & Automation',
-  'Skills & Agents',
-  'Tools & Libraries',
+  'Tools & Integrations',
   'Tutorials & Guides',
-  'Projects & Showcases',
-  'News & Announcements',
-  'Discussion & Opinion',
+  'Official Updates',
+  'Community Showcase',
 ];
+
+const CLAUDE_TOOLS = ['claude-chat', 'claude-code', 'claude-cowork', 'mcp', 'api', 'multiple'];
+const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced'];
+const CONTENT_FORMATS = ['video', 'written-guide', 'prompt-collection', 'code-example', 'case-study', 'news', 'discussion'];
 
 // ── URL type detection ────────────────────────────────────────────
 
@@ -367,6 +369,9 @@ Given this content, return a JSON object with:
 - "title": short descriptive title (max 80 chars)
 - "summary": 1-2 sentence summary for discovering Claude resources (max 200 chars). Never use em dashes.
 - "category": exactly one of: ${CATEGORIES.map(c => `"${c}"`).join(', ')}
+- "claude_tool": which Claude product/tool is most relevant. One of: ${CLAUDE_TOOLS.map(t => `"${t}"`).join(', ')}
+- "skill_level": target audience skill level. One of: ${SKILL_LEVELS.map(s => `"${s}"`).join(', ')}
+- "content_format": format of the content. One of: ${CONTENT_FORMATS.map(f => `"${f}"`).join(', ')}
 - "tags": array of 2-5 lowercase hyphenated tags (e.g. ["claude-code", "mcp-server"])
 - "ai_quality_score": integer 1-10 (see scoring guide below)
 - "tweet_draft": a tweet (max 280 chars) from @claudelists. Include the resource URL. Never use em dashes.
@@ -374,6 +379,24 @@ Given this content, return a JSON object with:
   - "84K devs already know about X. You probably don't. Fix that."
   - "The difference between 'Claude is okay' and 'Claude is incredible' is usually 5 lines in your CLAUDE.md. Most people never configure it."
   - "The Claude power users in your timeline are all running MCP servers. The rest are wondering why their setup feels slow."
+
+CATEGORY GUIDELINES:
+- "Claude Code": CLI tool, terminal workflows, Claude Code extensions, hooks, CLAUDE.md config
+- "Claude Cowork": Background agents, multi-agent, autonomous tasks, cowork mode
+- "Specialized Prompts": Prompt engineering, system prompts, prompt templates, techniques
+- "Workflows & Automation": Pipelines, CI/CD with Claude, automation scripts, scheduled tasks
+- "Tools & Integrations": MCP servers, libraries, SDKs, browser extensions, third-party integrations
+- "Tutorials & Guides": How-tos, walkthroughs, courses, educational content
+- "Official Updates": Anthropic announcements, Claude releases, changelog, official blog posts
+- "Community Showcase": Projects, demos, case studies, community-built tools, general discussion
+
+CLAUDE TOOL GUIDELINES:
+- "claude-chat": Claude web UI (claude.ai), conversational use, prompt-focused
+- "claude-code": Claude Code CLI, terminal-based development, CLAUDE.md
+- "claude-cowork": Background agents, cowork mode, autonomous workflows
+- "mcp": MCP servers, MCP protocol, tool integrations via MCP
+- "api": Anthropic API, SDK usage, programmatic access
+- "multiple": Covers 2+ tools, or general Claude ecosystem content
 
 SCORING GUIDE:
 Base score (content quality):
@@ -424,7 +447,10 @@ ${extracted.metadata?.stars ? `- GitHub Stars: ${extracted.metadata.stars.toLoca
   return {
     title: result.title,
     summary: result.summary,
-    category: CATEGORIES.includes(result.category) ? result.category : 'Discussion & Opinion',
+    category: CATEGORIES.includes(result.category) ? result.category : 'Community Showcase',
+    claude_tool: CLAUDE_TOOLS.includes(result.claude_tool) ? result.claude_tool : 'claude-chat',
+    skill_level: SKILL_LEVELS.includes(result.skill_level) ? result.skill_level : 'intermediate',
+    content_format: CONTENT_FORMATS.includes(result.content_format) ? result.content_format : null,
     tags: result.tags || [],
     ai_quality_score: Math.min(10, Math.max(1, result.ai_quality_score || 5)),
     tweet_draft: result.tweet_draft || '',
@@ -452,20 +478,68 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  // Check for duplicates
+  // Check for duplicates (exact URL + normalized URL + expanded_links)
   const supabase = createServiceClient();
-  const { data: existing } = await supabase
+
+  // Normalize URL for fuzzy matching: strip www, trailing slash, tracking params
+  function normalizeUrl(u) {
+    try {
+      const parsed = new URL(u);
+      parsed.hostname = parsed.hostname.replace(/^www\./, '');
+      // Remove common tracking params
+      ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','ref','pp','si','s','t','feature'].forEach(p => parsed.searchParams.delete(p));
+      // Remove trailing slash
+      let result = parsed.toString().replace(/\/+$/, '');
+      return result;
+    } catch { return u; }
+  }
+
+  const normalizedUrl = normalizeUrl(url);
+
+  // 1. Exact match on primary_url or tweet_url
+  const { data: exactMatch } = await supabase
     .from('resources')
-    .select('id, title, primary_url')
+    .select('id, title, primary_url, tweet_url, author_handle')
     .or(`primary_url.eq.${url},tweet_url.eq.${url}`)
     .limit(1);
 
-  if (existing?.length > 0) {
+  if (exactMatch?.length > 0) {
+    const match = exactMatch[0];
+    const source = match.author_handle ? `@${match.author_handle}` : 'another source';
     return NextResponse.json({
       error: 'duplicate',
-      message: `This URL already exists as "${existing[0].title}"`,
-      existing: existing[0],
+      message: `Already exists: "${match.title}" (via ${source})`,
+      existing: match,
     }, { status: 409 });
+  }
+
+  // 2. Normalized URL match (catches www vs non-www, trailing slashes, tracking params)
+  const { data: allResources } = await supabase
+    .from('resources')
+    .select('id, title, primary_url, tweet_url, expanded_links, author_handle')
+    .limit(500);
+
+  if (allResources?.length > 0) {
+    const fuzzyMatch = allResources.find(r => {
+      // Check normalized primary_url
+      if (r.primary_url && normalizeUrl(r.primary_url) === normalizedUrl) return true;
+      // Check normalized tweet_url
+      if (r.tweet_url && normalizeUrl(r.tweet_url) === normalizedUrl) return true;
+      // Check expanded_links array (same content shared by different person)
+      if (r.expanded_links?.length > 0) {
+        return r.expanded_links.some(link => normalizeUrl(link) === normalizedUrl);
+      }
+      return false;
+    });
+
+    if (fuzzyMatch) {
+      const source = fuzzyMatch.author_handle ? `@${fuzzyMatch.author_handle}` : 'another source';
+      return NextResponse.json({
+        error: 'duplicate',
+        message: `Already exists: "${fuzzyMatch.title}" (via ${source})`,
+        existing: fuzzyMatch,
+      }, { status: 409 });
+    }
   }
 
   try {
@@ -479,6 +553,9 @@ export async function POST(request) {
         title: analysis.title,
         summary: analysis.summary,
         category: analysis.category,
+        claude_tool: analysis.claude_tool,
+        skill_level: analysis.skill_level,
+        content_format: analysis.content_format,
         tags: analysis.tags,
         ai_quality_score: analysis.ai_quality_score,
         tweet_draft: analysis.tweet_draft,

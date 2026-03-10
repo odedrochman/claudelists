@@ -19,11 +19,11 @@ async function resolveCategoryId(supabase, categoryName) {
 
   if (data) return data.id;
 
-  // Fallback to Discussion & Opinion
+  // Fallback to Community Showcase
   const { data: fallback } = await supabase
     .from('categories')
     .select('id')
-    .eq('name', 'Discussion & Opinion')
+    .eq('name', 'Community Showcase')
     .single();
 
   return fallback?.id;
@@ -67,7 +67,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { title, summary, category, tags, ai_quality_score, tweet_text, source_url, url_type, author } = body;
+  const { title, summary, category, tags, ai_quality_score, tweet_text, source_url, url_type, author, claude_tool, skill_level, content_format } = body;
 
   if (!title || !tweet_text || !source_url) {
     return NextResponse.json({ error: 'title, tweet_text, and source_url are required' }, { status: 400 });
@@ -85,7 +85,7 @@ export async function POST(request) {
   }
 
   // Step 2: Resolve category
-  const categoryId = await resolveCategoryId(supabase, category || 'Discussion & Opinion');
+  const categoryId = await resolveCategoryId(supabase, category || 'Community Showcase');
 
   // Step 3: Insert resource
   const resourceRow = {
@@ -105,6 +105,9 @@ export async function POST(request) {
     is_thread: false,
     is_duplicate: false,
     ai_quality_score: ai_quality_score || 5,
+    claude_tool: claude_tool || null,
+    skill_level: skill_level || null,
+    content_format: content_format || null,
     posted_to_twitter: true,
     posted_at: new Date().toISOString(),
     tweet_created_at: new Date().toISOString(),

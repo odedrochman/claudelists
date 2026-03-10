@@ -49,6 +49,43 @@ export function getScoreStyle(score) {
   return SCORE_COLORS.low;
 }
 
+export const SKILL_LEVELS = {
+  beginner: { label: 'Beginner', color: 'text-emerald-700 border-emerald-300 bg-emerald-50' },
+  intermediate: { label: 'Intermediate', color: 'text-blue-700 border-blue-300 bg-blue-50' },
+  advanced: { label: 'Advanced', color: 'text-purple-700 border-purple-300 bg-purple-50' },
+};
+
+export const CONTENT_FORMATS = {
+  video: { label: 'Video' },
+  'written-guide': { label: 'Written Guide' },
+  'prompt-collection': { label: 'Prompts' },
+  'code-example': { label: 'Code Example' },
+  'case-study': { label: 'Case Study' },
+  news: { label: 'News' },
+  discussion: { label: 'Discussion' },
+};
+
+export function formatSkillLevel(level) {
+  return SKILL_LEVELS[level]?.label || level;
+}
+
+export function formatContentFormat(format) {
+  return CONTENT_FORMATS[format]?.label || (format ? format.replace(/-/g, ' ') : '');
+}
+
+export const CLAUDE_TOOLS = {
+  'claude-chat': { label: 'Claude Chat', color: 'text-gray-700 border-gray-300 bg-gray-50' },
+  'claude-code': { label: 'Claude Code', color: 'text-sky-700 border-sky-300 bg-sky-50' },
+  'claude-cowork': { label: 'Claude Cowork', color: 'text-orange-700 border-orange-300 bg-orange-50' },
+  'mcp': { label: 'MCP', color: 'text-violet-700 border-violet-300 bg-violet-50' },
+  'api': { label: 'API', color: 'text-teal-700 border-teal-300 bg-teal-50' },
+  'multiple': { label: 'Multiple Tools', color: 'text-indigo-700 border-indigo-300 bg-indigo-50' },
+};
+
+export function formatClaudeTool(tool) {
+  return CLAUDE_TOOLS[tool]?.label || tool;
+}
+
 export const SORT_OPTIONS = {
   score: { column: 'ai_quality_score', ascending: false, nullsFirst: false, label: 'Top Rated', pill: true },
   newest: { column: 'tweet_created_at', ascending: false, nullsFirst: false, label: 'Newest', pill: true, secondary: { column: 'discovered_at', ascending: false } },

@@ -28,10 +28,35 @@ const URL_TYPE_LABELS = {
 };
 
 const CATEGORIES = [
-  'MCP Servers', 'Prompts & Techniques', 'CLAUDE.md & Config',
-  'Workflows & Automation', 'Skills & Agents', 'Tools & Libraries',
-  'Tutorials & Guides', 'Projects & Showcases', 'News & Announcements',
-  'Discussion & Opinion',
+  'Claude Code', 'Claude Cowork', 'Specialized Prompts',
+  'Workflows & Automation', 'Tools & Integrations',
+  'Tutorials & Guides', 'Official Updates', 'Community Showcase',
+];
+
+const CLAUDE_TOOLS = [
+  { value: 'claude-chat', label: 'Claude Chat' },
+  { value: 'claude-code', label: 'Claude Code' },
+  { value: 'claude-cowork', label: 'Claude Cowork' },
+  { value: 'mcp', label: 'MCP' },
+  { value: 'api', label: 'API' },
+  { value: 'multiple', label: 'Multiple Tools' },
+];
+
+const SKILL_LEVEL_OPTIONS = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+];
+
+const CONTENT_FORMAT_OPTIONS = [
+  { value: '', label: 'Auto' },
+  { value: 'video', label: 'Video' },
+  { value: 'written-guide', label: 'Written Guide' },
+  { value: 'prompt-collection', label: 'Prompts' },
+  { value: 'code-example', label: 'Code Example' },
+  { value: 'case-study', label: 'Case Study' },
+  { value: 'news', label: 'News' },
+  { value: 'discussion', label: 'Discussion' },
 ];
 
 export default function AddContent({ adminKey }) {
@@ -47,6 +72,9 @@ export default function AddContent({ adminKey }) {
   const [category, setCategory] = useState('');
   const [tags, setTags] = useState('');
   const [score, setScore] = useState(5);
+  const [claudeTool, setClaudeTool] = useState('claude-chat');
+  const [skillLevel, setSkillLevel] = useState('intermediate');
+  const [contentFormat, setContentFormat] = useState('');
   const [tweetDraft, setTweetDraft] = useState('');
 
   // Output selection
@@ -88,7 +116,7 @@ export default function AddContent({ adminKey }) {
       if (!resp.ok) {
         if (data.error === 'duplicate') {
           // Show as warning, not blocking error (user might want article-only)
-          setDuplicateWarning(`Already exists as resource: "${data.existing.title}"`);
+          setDuplicateWarning(data.message);
           setOutputResource(false);
           setOutputTweet(false);
           setOutputArticle(true);
@@ -103,6 +131,9 @@ export default function AddContent({ adminKey }) {
         setTitle(data.preview.title);
         setSummary(data.preview.summary);
         setCategory(data.preview.category);
+        setClaudeTool(data.preview.claude_tool || 'claude-chat');
+        setSkillLevel(data.preview.skill_level || 'intermediate');
+        setContentFormat(data.preview.content_format || '');
         setTags(data.preview.tags.join(', '));
         setScore(data.preview.ai_quality_score);
         setTweetDraft(data.preview.tweet_draft);
@@ -222,6 +253,9 @@ export default function AddContent({ adminKey }) {
             title,
             summary,
             category,
+            claude_tool: claudeTool,
+            skill_level: skillLevel,
+            content_format: contentFormat || null,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
             ai_quality_score: score,
             tweet_text: tweetDraft,
@@ -291,6 +325,9 @@ export default function AddContent({ adminKey }) {
     setTitle('');
     setSummary('');
     setCategory('');
+    setClaudeTool('claude-chat');
+    setSkillLevel('intermediate');
+    setContentFormat('');
     setTags('');
     setScore(5);
     setTweetDraft('');
@@ -527,6 +564,46 @@ export default function AddContent({ adminKey }) {
                 onChange={(e) => setScore(Number(e.target.value))}
                 className="w-full mt-1 accent-[#C15F3C]"
               />
+            </div>
+          </div>
+
+          {/* Claude Tool + Skill Level + Content Format row */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-[#8B7355] mb-1">Claude Tool</label>
+              <select
+                value={claudeTool}
+                onChange={(e) => setClaudeTool(e.target.value)}
+                className="w-full px-3 py-2 bg-[#FAF9F5] border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+              >
+                {CLAUDE_TOOLS.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#8B7355] mb-1">Skill Level</label>
+              <select
+                value={skillLevel}
+                onChange={(e) => setSkillLevel(e.target.value)}
+                className="w-full px-3 py-2 bg-[#FAF9F5] border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+              >
+                {SKILL_LEVEL_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#8B7355] mb-1">Content Format</label>
+              <select
+                value={contentFormat}
+                onChange={(e) => setContentFormat(e.target.value)}
+                className="w-full px-3 py-2 bg-[#FAF9F5] border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+              >
+                {CONTENT_FORMAT_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 

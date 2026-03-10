@@ -372,17 +372,19 @@ export async function extractFromUrl(url) {
 // ── Analyze extracted content with Claude ─────────────────────────
 
 const CATEGORIES = [
-  'MCP Servers',
-  'Prompts & Techniques',
-  'CLAUDE.md & Config',
+  'Claude Code',
+  'Claude Cowork',
+  'Specialized Prompts',
   'Workflows & Automation',
-  'Skills & Agents',
-  'Tools & Libraries',
+  'Tools & Integrations',
   'Tutorials & Guides',
-  'Projects & Showcases',
-  'News & Announcements',
-  'Discussion & Opinion',
+  'Official Updates',
+  'Community Showcase',
 ];
+
+const CLAUDE_TOOLS = ['claude-chat', 'claude-code', 'claude-cowork', 'mcp', 'api', 'multiple'];
+const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced'];
+const CONTENT_FORMATS = ['video', 'written-guide', 'prompt-collection', 'code-example', 'case-study', 'news', 'discussion'];
 
 export async function analyzeContent(extracted) {
   // Build YouTube engagement summary if available
@@ -414,12 +416,33 @@ Given this content, return a JSON object with:
 - "summary": 1-2 sentence summary for discovering Claude resources (max 200 chars). Never use em dashes.
 - "category": exactly one of: ${CATEGORIES.map(c => `"${c}"`).join(', ')}
 - "tags": array of 2-5 lowercase hyphenated tags (e.g. ["claude-code", "mcp-server"])
+- "claude_tool": which Claude product/tool is most relevant. One of: ${CLAUDE_TOOLS.map(t => `"${t}"`).join(', ')}
+- "skill_level": target audience skill level. One of: ${SKILL_LEVELS.map(s => `"${s}"`).join(', ')}
+- "content_format": format of the content. One of: ${CONTENT_FORMATS.map(f => `"${f}"`).join(', ')}
 - "ai_quality_score": integer 1-10 (see scoring guide below)
 - "tweet_draft": a tweet (max 280 chars) from @claudelists. Include the resource URL. Never use em dashes.
   TONE: Loss aversion + social proof. Imply the reader is missing out on what others already know or use. Frame inaction as a cost. Use "you" directly. Short, punchy, slightly spicy. Not mean, but makes you feel behind. Examples of the voice:
   - "84K devs already know about X. You probably don't. Fix that."
   - "The difference between 'Claude is okay' and 'Claude is incredible' is usually 5 lines in your CLAUDE.md. Most people never configure it."
   - "The Claude power users in your timeline are all running MCP servers. The rest are wondering why their setup feels slow."
+
+CATEGORY GUIDELINES:
+- "Claude Code": Claude Code CLI/desktop app, setup guides, features, integrations, voice mode, hooks, scheduled tasks, development workflows
+- "Claude Cowork": Claude Cowork desktop app tutorials, business automation, real-world applications, collaboration workflows
+- "Specialized Prompts": Domain-specific prompt collections (finance, business, content creation, analysis), prompt libraries
+- "Workflows & Automation": Pipelines, automation using Claude, CI/CD with AI, scheduled tasks, skills, agents, agent SDK, multi-agent systems
+- "Tools & Integrations": SDKs, CLI tools, VS Code extensions, MCP servers, developer tooling for Claude
+- "Tutorials & Guides": How-to content, walkthroughs, educational material, setup guides, CLAUDE.md configs (not specific to Code or Cowork)
+- "Official Updates": Official Anthropic announcements, releases, model updates, courses, platform changes
+- "Community Showcase": Things people built with Claude, demos, case studies, community discussions, opinions, comparisons, reviews
+
+CLAUDE TOOL GUIDELINES:
+- "claude-chat": General Claude usage via chat interface, prompts, non-tool-specific content
+- "claude-code": Claude Code CLI/desktop app specific content
+- "claude-cowork": Claude Cowork desktop app specific content
+- "mcp": MCP server/protocol specific content
+- "api": Claude API, SDK, programmatic usage
+- "multiple": Content covering multiple Claude tools together
 
 SCORING GUIDE:
 Base score (content quality):
@@ -470,8 +493,11 @@ ${extracted.metadata?.stars ? `- GitHub Stars: ${extracted.metadata.stars.toLoca
   return {
     title: result.title,
     summary: result.summary,
-    category: CATEGORIES.includes(result.category) ? result.category : 'Discussion & Opinion',
+    category: CATEGORIES.includes(result.category) ? result.category : 'Community Showcase',
     tags: result.tags || [],
+    claude_tool: CLAUDE_TOOLS.includes(result.claude_tool) ? result.claude_tool : 'claude-chat',
+    skill_level: SKILL_LEVELS.includes(result.skill_level) ? result.skill_level : 'intermediate',
+    content_format: CONTENT_FORMATS.includes(result.content_format) ? result.content_format : null,
     ai_quality_score: Math.min(10, Math.max(1, result.ai_quality_score || 5)),
     tweet_draft: result.tweet_draft || '',
   };

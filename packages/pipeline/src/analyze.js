@@ -13,17 +13,17 @@ const BATCH_SIZE = 10;
 const anthropic = new Anthropic();
 
 const CATEGORIES = [
-  'MCP Servers',
-  'Prompts & Techniques',
-  'CLAUDE.md & Config',
+  'Claude Code',
+  'Claude Cowork',
+  'Specialized Prompts',
   'Workflows & Automation',
-  'Skills & Agents',
-  'Tools & Libraries',
+  'Tools & Integrations',
   'Tutorials & Guides',
-  'Projects & Showcases',
-  'News & Announcements',
-  'Discussion & Opinion',
+  'Official Updates',
+  'Community Showcase',
 ];
+
+const CLAUDE_TOOLS = ['claude-chat', 'claude-code', 'claude-cowork', 'mcp', 'api', 'multiple'];
 
 function buildPrompt(bookmarks) {
   const items = bookmarks.map(b => ({
@@ -43,8 +43,11 @@ For each bookmark below, return a JSON object with:
 - "title": short descriptive title (max 80 chars). For articles/repos use their title. For tweets, create one from content.
 - "summary": 1-2 sentence summary useful for discovering Claude resources (max 200 chars)
 - "category": exactly one of: ${CATEGORIES.map(c => `"${c}"`).join(', ')}
-- "tags": array of 2-5 lowercase hyphenated tags relevant to the Claude ecosystem (e.g. ["claude-code", "mcp-server", "prompt-engineering", "agent-sdk", "claude-md"])
+- "tags": array of 2-5 lowercase hyphenated tags relevant to the Claude ecosystem (e.g. ["claude-code", "mcp-server", "prompts", "agent-sdk", "claude-md"])
 - IMPORTANT: If the tweet asks users to like, retweet, comment, or follow in order to receive something via DM (engagement-gated content), ALWAYS include the tag "engagement-required" in the tags array
+- "claude_tool": exactly one of: ${CLAUDE_TOOLS.map(t => `"${t}"`).join(', ')}. Which Claude tool/interface is primarily used or discussed.
+- "skill_level": exactly one of: "beginner", "intermediate", "advanced". The target skill level of the resource.
+- "content_format": exactly one of: "video", "written-guide", "prompt-collection", "code-example", "case-study", "news", "discussion". The format of the content.
 - "ai_quality_score": integer 1-10 rating the resource's quality and usefulness to Claude/Anthropic developers:
   1-3: Low value — vague, promotional, no actionable content, just a link with no context
   4-5: Below average — common knowledge, thin content, or low-effort share
@@ -55,16 +58,22 @@ For each bookmark below, return a JSON object with:
   10: Exceptional — reference-quality resource that developers will bookmark and share
 
 Category guidelines:
-- "MCP Servers": Model Context Protocol servers, MCP integrations, MCP tools
-- "Prompts & Techniques": System prompts, prompt engineering, jailbreaks, prompt patterns
-- "CLAUDE.md & Config": CLAUDE.md files, project configs, rules files, agent system setups
-- "Workflows & Automation": Pipelines, automation using Claude, CI/CD with AI, scheduled tasks
-- "Skills & Agents": Claude skills, agent architectures, agent SDK, multi-agent systems
-- "Tools & Libraries": SDKs, CLI tools, VS Code extensions, developer tooling for Claude
-- "Tutorials & Guides": How-to content, walkthroughs, educational material
-- "Projects & Showcases": Things people built with Claude, demos, case studies
-- "News & Announcements": Anthropic releases, model updates, industry news
-- "Discussion & Opinion": Community takes, debates, comparisons, reviews
+- "Claude Code": Claude Code CLI/desktop app, setup guides, features, integrations, voice mode, hooks, scheduled tasks, development workflows
+- "Claude Cowork": Claude Cowork desktop app tutorials, business automation, real-world applications, collaboration workflows
+- "Specialized Prompts": Domain-specific prompt collections (finance, business, content creation, analysis), prompt libraries
+- "Workflows & Automation": Pipelines, automation using Claude, CI/CD with AI, scheduled tasks, skills, agents, agent SDK, multi-agent systems
+- "Tools & Integrations": SDKs, CLI tools, VS Code extensions, MCP servers, developer tooling for Claude
+- "Tutorials & Guides": How-to content, walkthroughs, educational material, setup guides, CLAUDE.md configs (not specific to Code or Cowork)
+- "Official Updates": Official Anthropic announcements, releases, model updates, courses, platform changes
+- "Community Showcase": Things people built with Claude, demos, case studies, community discussions, opinions, comparisons, reviews
+
+Claude tool guidelines:
+- "claude-chat": General Claude usage via chat interface, prompts, non-tool-specific content
+- "claude-code": Claude Code CLI/desktop app specific content
+- "claude-cowork": Claude Cowork desktop app specific content
+- "mcp": MCP server/protocol specific content
+- "api": Claude API, SDK, programmatic usage
+- "multiple": Content covering multiple Claude tools together
 
 Return ONLY a valid JSON array. No markdown fences, no explanation.
 
@@ -100,7 +109,7 @@ async function analyzeBatch(batch, retries = 2) {
           id: b.id,
           title: (b.text || '').substring(0, 80),
           summary: 'Analysis failed - review manually',
-          category: 'Discussion & Opinion',
+          category: 'Community Showcase',
           tags: [],
           ai_quality_score: 5,
         }));
@@ -146,6 +155,9 @@ export async function analyzeBookmarks(enrichedBookmarks, options = {}) {
           category: result.category,
           tags: result.tags || [],
           ai_quality_score: Math.min(10, Math.max(1, result.ai_quality_score || 5)),
+          claude_tool: CLAUDE_TOOLS.includes(result.claude_tool) ? result.claude_tool : 'claude-chat',
+          skill_level: result.skill_level || 'intermediate',
+          content_format: result.content_format || 'written-guide',
         });
       }
     }

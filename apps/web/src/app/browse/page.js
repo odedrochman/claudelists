@@ -1,11 +1,13 @@
 import { Suspense } from 'react';
 import { createServerClient } from '../../lib/supabase';
-import { SORT_OPTIONS, formatContentType } from '../../lib/resource-utils';
+import { SORT_OPTIONS, formatContentType, SKILL_LEVELS, CONTENT_FORMATS, CLAUDE_TOOLS, formatContentFormat } from '../../lib/resource-utils';
 import ResourceCard from '../../components/ResourceCard';
 import ResourceTable from '../../components/ResourceTable';
 import ViewToggle from '../../components/ViewToggle';
 import SearchBar from '../../components/SearchBar';
 import CategoryNav from '../../components/CategoryNav';
+import FadeIn from '../../components/animations/FadeIn';
+import { StaggerContainer, StaggerItem } from '../../components/animations/StaggerChildren';
 
 export const revalidate = 300;
 
@@ -19,7 +21,7 @@ export const metadata = {
 
 const PAGE_SIZE = 100;
 
-async function getResources({ q, category, contentType, tag, sort = 'newest', page = 1 }) {
+async function getResources({ q, category, contentType, tag, skillLevel, contentFormat, claudeTool, sort = 'newest', page = 1 }) {
   const supabase = createServerClient();
   const offset = (page - 1) * PAGE_SIZE;
   const sortOpt = SORT_OPTIONS[sort] || SORT_OPTIONS.newest;
@@ -56,6 +58,15 @@ async function getResources({ q, category, contentType, tag, sort = 'newest', pa
   if (tag) {
     query = query.eq('resource_tags.tags.name', tag);
   }
+  if (skillLevel) {
+    query = query.eq('skill_level', skillLevel);
+  }
+  if (contentFormat) {
+    query = query.eq('content_format', contentFormat);
+  }
+  if (claudeTool) {
+    query = query.eq('claude_tool', claudeTool);
+  }
 
   const { data, count } = await query;
   return { resources: data || [], total: count || 0 };
@@ -67,11 +78,14 @@ async function BrowseContent({ searchParams }) {
   const category = params.category || '';
   const contentType = params.type || '';
   const tag = params.tag || '';
+  const skillLevel = params.skill || '';
+  const contentFormat = params.format || '';
+  const claudeTool = params.tool || '';
   const sort = params.sort || 'newest';
   const page = parseInt(params.page || '1', 10);
   const view = params.view || 'list';
 
-  const { resources, total } = await getResources({ q, category, contentType, tag, sort, page });
+  const { resources, total } = await getResources({ q, category, contentType, tag, skillLevel, contentFormat, claudeTool, sort, page });
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -97,18 +111,22 @@ async function BrowseContent({ searchParams }) {
             />
           </div>
           {/* Fallback cards on mobile */}
-          <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StaggerContainer className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
             {resources.map(resource => (
-              <ResourceCard key={resource.id} resource={resource} />
+              <StaggerItem key={resource.id}>
+                <ResourceCard resource={resource} />
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerContainer>
         </>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {resources.map(resource => (
-            <ResourceCard key={resource.id} resource={resource} />
+            <StaggerItem key={resource.id}>
+              <ResourceCard resource={resource} />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       )}
 
       {resources.length === 0 && (
@@ -153,6 +171,9 @@ function buildFilterHref(currentParams, key, value) {
   // Preserve existing filters except the one being toggled and reset page
   if (currentParams?.type && key !== 'type') params.set('type', currentParams.type);
   if (currentParams?.tag && key !== 'tag') params.set('tag', currentParams.tag);
+  if (currentParams?.skill && key !== 'skill') params.set('skill', currentParams.skill);
+  if (currentParams?.format && key !== 'format') params.set('format', currentParams.format);
+  if (currentParams?.tool && key !== 'tool') params.set('tool', currentParams.tool);
   if (currentParams?.q) params.set('q', currentParams.q);
   if (currentParams?.category) params.set('category', currentParams.category);
   if (currentParams?.sort && key !== 'sort') params.set('sort', currentParams.sort);
@@ -168,7 +189,9 @@ export default async function BrowsePage({ searchParams }) {
   const view = params?.view || 'list';
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold mb-6">Explore Resources</h1>
+      <FadeIn>
+        <h1 className="text-2xl font-bold mb-6">Explore Resources</h1>
+      </FadeIn>
 
       <div className="mb-6">
         <Suspense fallback={<div className="h-10" />}>
@@ -205,7 +228,7 @@ export default async function BrowsePage({ searchParams }) {
       </div>
 
       {/* Content type & tag filters */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-4">
         {['tweet', 'github_repo', 'article', 'thread', 'video'].map(type => (
           <a
             key={type}
@@ -229,6 +252,55 @@ export default async function BrowsePage({ searchParams }) {
         >
           Engagement required
         </a>
+      </div>
+
+      {/* Skill level & content format filters */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {Object.entries(SKILL_LEVELS).map(([key, { label, color }]) => (
+          <a
+            key={key}
+            href={buildFilterHref(params, 'skill', key)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              params?.skill === key
+                ? color
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {label}
+          </a>
+        ))}
+        <span className="w-px bg-[var(--border)] mx-1" />
+        {Object.entries(CONTENT_FORMATS).map(([key, { label }]) => (
+          <a
+            key={key}
+            href={buildFilterHref(params, 'format', key)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              params?.format === key
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--foreground)]'
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {label}
+          </a>
+        ))}
+      </div>
+
+      {/* Claude Tool filter */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <span className="text-xs text-[var(--muted)] self-center">Tool:</span>
+        {Object.entries(CLAUDE_TOOLS).map(([key, { label, color }]) => (
+          <a
+            key={key}
+            href={buildFilterHref(params, 'tool', key)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              params?.tool === key
+                ? color
+                : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            {label}
+          </a>
+        ))}
       </div>
 
       <Suspense fallback={<div className="text-center py-12 text-[var(--muted)]">Loading...</div>}>

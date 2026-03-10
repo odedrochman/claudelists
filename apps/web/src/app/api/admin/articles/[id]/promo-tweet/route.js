@@ -10,7 +10,7 @@ function checkAdminKey(request) {
   return true;
 }
 
-// Resolve category ID by name, fallback to Discussion & Opinion
+// Resolve category ID by name, fallback to Community Showcase
 async function resolveCategoryId(supabase, categoryName) {
   const { data } = await supabase
     .from('categories')
@@ -23,7 +23,7 @@ async function resolveCategoryId(supabase, categoryName) {
   const { data: fallback } = await supabase
     .from('categories')
     .select('id')
-    .eq('name', 'Discussion & Opinion')
+    .eq('name', 'Community Showcase')
     .single();
 
   return fallback?.id;
