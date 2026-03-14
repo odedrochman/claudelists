@@ -3,6 +3,7 @@ import AdminActions from './AdminActions';
 import ArticleActions from './ArticleActions';
 import AddContent from './AddContent';
 import DigestGenerator from './DigestGenerator';
+import FirehoseReview from './FirehoseReview';
 
 export const metadata = {
   title: 'Admin - ClaudeLists',
@@ -46,6 +47,7 @@ export default async function AdminPage({ searchParams }) {
         <div className="flex items-center gap-4 mb-6 border-b border-[#E0D5C1]">
           {[
             { key: 'add-content', label: 'Add Content' },
+            { key: 'firehose', label: 'Firehose' },
             { key: 'submissions', label: 'Submissions' },
             { key: 'digest', label: 'Digest' },
           ].map((t) => (
@@ -65,6 +67,9 @@ export default async function AdminPage({ searchParams }) {
 
         {activeTab === 'add-content' && (
           <AddContent adminKey={key} />
+        )}
+        {activeTab === 'firehose' && (
+          <FirehoseReview adminKey={key} />
         )}
         {activeTab === 'submissions' && (
           <SubmissionsTab supabase={supabase} filterStatus={status || 'pending'} adminKey={key} />
