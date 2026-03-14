@@ -55,7 +55,7 @@ async function getArticle(slug, allowDraft = false) {
   let query = supabase
     .from('articles')
     .select(`
-      id, slug, title, article_type, content, meta_description, og_title, og_background_url,
+      id, slug, title, article_type, content, meta_description, og_title, og_quote, og_background_url,
       status, published_at, period_start, period_end,
       article_resources ( position, resource_id, resources ( title, tweet_url, author_handle, primary_url, content_type ) )
     `)
@@ -96,6 +96,9 @@ export async function generateMetadata({ params, searchParams }) {
     });
     if (article.og_background_url) {
       ogImageParams.set('bg', article.og_background_url);
+    }
+    if (article.og_quote) {
+      ogImageParams.set('quote', article.og_quote);
     }
     ogImageUrl = `https://claudelists.com/api/og?${ogImageParams.toString()}`;
   }

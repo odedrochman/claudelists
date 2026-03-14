@@ -42,12 +42,13 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Only draft articles can be edited' }, { status: 400 });
     }
 
-    const { content, title: newTitle, meta_description, article_type } = body;
+    const { content, title: newTitle, meta_description, article_type, og_quote } = body;
     const updates = { updated_at: new Date().toISOString() };
     if (content !== undefined) updates.content = content;
     if (newTitle !== undefined) updates.title = newTitle;
     if (meta_description !== undefined) updates.meta_description = meta_description;
     if (article_type !== undefined) updates.article_type = article_type;
+    if (og_quote !== undefined) updates.og_quote = og_quote;
 
     const { error: updateError } = await supabase
       .from('articles')

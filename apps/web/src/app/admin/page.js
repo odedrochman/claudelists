@@ -181,7 +181,7 @@ async function ArticlesTab({ supabase, filterStatus, adminKey }) {
     .from('articles')
     .select(`
       id, slug, title, article_type, content, status,
-      published_at, reviewer_notes, meta_description, created_at,
+      published_at, reviewer_notes, meta_description, og_quote, created_at,
       thread_url,
       article_resources ( resource_id )
     `)
@@ -250,6 +250,9 @@ async function ArticlesTab({ supabase, filterStatus, adminKey }) {
                     </div>
 
                     <h3 className="text-lg font-semibold text-[#3D2E1F]">{article.title}</h3>
+                    {article.og_quote && (
+                      <p className="text-sm text-[#C15F3C] mt-1 italic">&ldquo;{article.og_quote}&rdquo;</p>
+                    )}
 
                     <div className="flex flex-wrap gap-3 mt-2 text-xs text-[#8B7355]">
                       <span>{resourceCount} resource{resourceCount !== 1 ? 's' : ''}</span>

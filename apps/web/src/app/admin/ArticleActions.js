@@ -22,6 +22,7 @@ export default function ArticleActions({ article, adminKey }) {
   const [editContent, setEditContent] = useState('');
   const [editMetaDesc, setEditMetaDesc] = useState('');
   const [editArticleType, setEditArticleType] = useState('daily');
+  const [editOgQuote, setEditOgQuote] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [editPreview, setEditPreview] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -106,6 +107,7 @@ export default function ArticleActions({ article, adminKey }) {
 
   function openEditor() {
     setEditTitle(article.title || '');
+    setEditOgQuote(article.og_quote || '');
     setEditContent(article.content || '');
     setEditMetaDesc(article.meta_description || '');
     setEditArticleType(article.article_type || 'daily');
@@ -122,6 +124,7 @@ export default function ArticleActions({ article, adminKey }) {
         body: JSON.stringify({
           action: 'update',
           title: editTitle,
+          og_quote: editOgQuote,
           content: editContent,
           meta_description: editMetaDesc,
           article_type: editArticleType,
@@ -292,6 +295,22 @@ export default function ArticleActions({ article, adminKey }) {
                   onChange={(e) => setEditTitle(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
                 />
+              </div>
+
+              {/* OG Quote */}
+              <div>
+                <label className="block text-xs font-medium text-[#8B7355] mb-1">
+                  OG Quote <span className="text-[10px] text-[#A89070]">(large text on social card)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editOgQuote}
+                  onChange={(e) => setEditOgQuote(e.target.value)}
+                  maxLength={80}
+                  placeholder="e.g. This setup replaced 4 browser tabs for me"
+                  className="w-full px-3 py-2 bg-white border border-[#E0D5C1] rounded-lg text-[#3D2E1F] text-sm focus:outline-none focus:ring-2 focus:ring-[#C15F3C]/30"
+                />
+                <div className="text-[10px] text-[#A89070] mt-0.5">{editOgQuote.length}/80 chars</div>
               </div>
 
               {/* Article Type + Meta Description */}
