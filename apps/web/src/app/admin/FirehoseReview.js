@@ -212,12 +212,12 @@ export default function FirehoseReview({ adminKey }) {
                       <span className="px-2 py-0.5 bg-[#F5F0E8] text-[#5C4A32] rounded text-xs font-medium">
                         {categoryName}
                       </span>
-                      {resource.posted_to_twitter && resource.tweet_url && (
+                      {resource.posted_to_twitter && resource.tweet_url && resource.tweet_url !== 'skipped' && (
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-medium">
                           Tweeted
                         </span>
                       )}
-                      {resource.posted_to_twitter && !resource.tweet_url && (
+                      {resource.posted_to_twitter && resource.tweet_url === 'skipped' && (
                         <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded text-xs font-medium">
                           Skipped
                         </span>
@@ -383,7 +383,7 @@ export default function FirehoseReview({ adminKey }) {
                 ) : null}
 
                 {/* Skipped */}
-                {((resource.posted_to_twitter && !resource.tweet_url) || state.skipped) && (
+                {((resource.posted_to_twitter && resource.tweet_url === 'skipped') || state.skipped) && (
                   <div className="mt-4 pt-4 border-t border-[#E0D5C1]">
                     <span className="text-xs text-gray-500 font-medium">No tweet needed</span>
                   </div>

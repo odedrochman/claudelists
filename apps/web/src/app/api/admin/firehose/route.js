@@ -35,9 +35,9 @@ export async function GET(request) {
   if (filter === 'pending') {
     query = query.eq('posted_to_twitter', false);
   } else if (filter === 'tweeted') {
-    query = query.eq('posted_to_twitter', true).not('tweet_url', 'is', null);
+    query = query.eq('posted_to_twitter', true).neq('tweet_url', 'skipped');
   } else if (filter === 'skipped') {
-    query = query.eq('posted_to_twitter', true).is('tweet_url', null);
+    query = query.eq('posted_to_twitter', true).eq('tweet_url', 'skipped');
   }
 
   const { data: resources, error } = await query;
@@ -208,7 +208,7 @@ Return ONLY valid JSON. No markdown fences.`;
       .update({
         posted_to_twitter: true,
         posted_at: new Date().toISOString(),
-        tweet_url: null,
+        tweet_url: 'skipped',
       })
       .eq('id', resourceId);
 
