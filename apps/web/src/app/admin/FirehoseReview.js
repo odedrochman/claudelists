@@ -20,7 +20,7 @@ export default function FirehoseReview({ adminKey }) {
   const [filter, setFilter] = useState('pending');
   const [error, setError] = useState(null);
 
-  // Per-resource tweet state: { [resourceId]: { tweets, type, generating, posting, edited, posted, tweetUrl } }
+  // Per-resource tweet state: { [resourceId]: { tweets, type, generating, posting, edited, posted, tweetUrl, skipping, skipped } }
   const [tweetState, setTweetState] = useState({});
 
   async function fetchResources() {
@@ -130,12 +130,29 @@ export default function FirehoseReview({ adminKey }) {
     updateTweetState(resourceId, { tweets: newTweets, edited: true });
   }
 
+  async function handleSkipTweet(resourceId) {
+    updateTweetState(resourceId, { skipping: true });
+    try {
+      const resp = await fetch(`/api/admin/firehose?key=${adminKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'skip-tweet', resourceId }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error);
+      updateTweetState(resourceId, { skipping: false, skipped: true });
+    } catch (e) {
+      updateTweetState(resourceId, { skipping: false });
+      setError(e.message);
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-[#3D2E1F]">Firehose Review</h2>
         <div className="flex gap-2">
-          {['pending', 'tweeted', 'all'].map((f) => (
+          {['pending', 'tweeted', 'skipped', 'all'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -195,9 +212,14 @@ export default function FirehoseReview({ adminKey }) {
                       <span className="px-2 py-0.5 bg-[#F5F0E8] text-[#5C4A32] rounded text-xs font-medium">
                         {categoryName}
                       </span>
-                      {resource.posted_to_twitter && (
+                      {resource.posted_to_twitter && resource.tweet_url && (
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-medium">
                           Tweeted
+                        </span>
+                      )}
+                      {resource.posted_to_twitter && !resource.tweet_url && (
+                        <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded text-xs font-medium">
+                          Skipped
                         </span>
                       )}
                     </div>
@@ -224,16 +246,25 @@ export default function FirehoseReview({ adminKey }) {
                 </div>
 
                 {/* Tweet section */}
-                {!resource.posted_to_twitter && !state.posted && (
+                {!resource.posted_to_twitter && !state.posted && !state.skipped && (
                   <div className="mt-4 pt-4 border-t border-[#E0D5C1]">
                     {/* No tweet generated yet */}
                     {!state.tweets && !state.generating && (
-                      <button
-                        onClick={() => handleGenerateTweet(resource.id)}
-                        className="px-4 py-2 bg-[#C15F3C] text-white rounded-lg text-sm font-medium hover:bg-[#A84E31]"
-                      >
-                        Generate Tweet
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleGenerateTweet(resource.id)}
+                          className="px-4 py-2 bg-[#C15F3C] text-white rounded-lg text-sm font-medium hover:bg-[#A84E31]"
+                        >
+                          Generate Tweet
+                        </button>
+                        <button
+                          onClick={() => handleSkipTweet(resource.id)}
+                          disabled={state.skipping}
+                          className="px-4 py-2 bg-white text-[#8B7355] border border-[#E0D5C1] rounded-lg text-sm font-medium hover:bg-[#F5F0E8] disabled:opacity-50"
+                        >
+                          {state.skipping ? 'Skipping...' : 'No Tweet Needed'}
+                        </button>
+                      </div>
                     )}
 
                     {/* Generating */}
@@ -333,7 +364,7 @@ export default function FirehoseReview({ adminKey }) {
                 )}
 
                 {/* Already posted */}
-                {(resource.posted_to_twitter || state.posted) && (
+                {(resource.posted_to_twitter && resource.tweet_url) || state.posted ? (
                   <div className="mt-4 pt-4 border-t border-[#E0D5C1]">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-emerald-600 font-medium">Posted</span>
@@ -348,6 +379,13 @@ export default function FirehoseReview({ adminKey }) {
                         </a>
                       )}
                     </div>
+                  </div>
+                ) : null}
+
+                {/* Skipped */}
+                {((resource.posted_to_twitter && !resource.tweet_url) || state.skipped) && (
+                  <div className="mt-4 pt-4 border-t border-[#E0D5C1]">
+                    <span className="text-xs text-gray-500 font-medium">No tweet needed</span>
                   </div>
                 )}
               </div>

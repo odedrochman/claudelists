@@ -35,7 +35,9 @@ export async function GET(request) {
   if (filter === 'pending') {
     query = query.eq('posted_to_twitter', false);
   } else if (filter === 'tweeted') {
-    query = query.eq('posted_to_twitter', true);
+    query = query.eq('posted_to_twitter', true).not('tweet_url', 'is', null);
+  } else if (filter === 'skipped') {
+    query = query.eq('posted_to_twitter', true).is('tweet_url', null);
   }
 
   const { data: resources, error } = await query;
@@ -194,6 +196,27 @@ Return ONLY valid JSON. No markdown fences.`;
       .eq('id', resourceId);
 
     return NextResponse.json({ success: true, tweetUrl });
+  }
+
+  if (action === 'skip-tweet') {
+    if (!resourceId) {
+      return NextResponse.json({ error: 'resourceId required' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('resources')
+      .update({
+        posted_to_twitter: true,
+        posted_at: new Date().toISOString(),
+        tweet_url: null,
+      })
+      .eq('id', resourceId);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
