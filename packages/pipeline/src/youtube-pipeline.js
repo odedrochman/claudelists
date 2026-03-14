@@ -214,69 +214,61 @@ Return ONLY valid JSON. No markdown fences, no explanation.`;
 
 // ── Tweet generation ───────────────────────────────────────────────
 
-async function generateTweet(analysis, articleSlug, extracted, useThread) {
+async function generateTweet(analysis, articleSlug, extracted) {
   const articleUrl = `https://claudelists.com/digest/${articleSlug}`;
   const channelName = extracted.author || 'a creator';
 
-  const format = useThread
-    ? `Return a JSON array of 3-5 tweet strings (a thread). Follow this THREAD STRUCTURE:
-
-Tweet 1 (THE HOOK):
-- Open with a pattern interrupt: a specific number, bold claim, provocative question, or surprising stat
-- Create a curiosity gap. The reader must feel they NEED to keep reading
-- End with a cliffhanger that pulls into tweet 2 (e.g. "Here's what they did differently:" or "The setup takes 3 steps.")
-- Include the article link: ${articleUrl}
-- Under 280 chars
-
-Tweet 2 (THE VALUE):
-- Deliver on the hook's promise with a specific insight, technique, or result from the video
-- One clear point per tweet. Don't cram multiple ideas.
-- End with a teaser for the next tweet ("But that's not even the best part." or "The real trick is in step 3.")
-- Under 280 chars
-
-Tweet 3 (THE DETAIL):
-- A second key takeaway, surprising detail, or practical tip from the video
-- Concrete and actionable. Give the reader something they can use immediately.
-- Under 280 chars
-
-Tweet 4 (optional, THE CLOSER):
-- Mention the creator by name
-- CTA: "Tag @claudelists to get featured"
-- Put ALL hashtags here (not in earlier tweets): #Claude #AI #ClaudeCode
-- Under 280 chars
-
-THREAD BEST PRACTICES:
-- Each tweet should stand alone as valuable, but together they tell a story
-- Use line breaks within tweets for readability, not walls of text
-- Vary sentence length: mix short punchy lines with slightly longer ones
-- The hook tweet gets 90% of the impressions. Spend most effort there.
-- DO NOT number tweets (1/4, 2/4). Numbering reduces engagement on X.
-
-Return ONLY a JSON array of strings. No markdown fences.`
-    : `Return a single JSON string (one tweet, 400-800 chars for a long tweet). Rules:
-- Open with a pattern interrupt hook: specific number, bold claim, or provocative question
-- Include a specific insight or result from the video (not just "check out this video")
-- Include the article link: ${articleUrl}
-- Mention the creator
-- Use line breaks for readability
-- End with CTA and hashtags (#Claude #AI #ClaudeCode) at the very end
-- Tag @claudelists
-Return ONLY a JSON string. No markdown fences.`;
-
-  const prompt = `You write tweets for @claudelists. Generate a tweet about this new article.
+  const prompt = `You write tweets for @claudelists. Generate a THREAD (4-5 tweets) about this new article featuring a YouTube video.
 
 TONE (Persona G: Loss Aversion + Social Proof):
 - Imply the reader is missing out on what others already know
 - Frame inaction as a cost. Use "you" directly
 - Short, punchy, slightly spicy. Not mean, but makes you feel behind
-- Examples: "The difference between 'Claude is okay' and 'Claude is incredible' is usually 5 lines in your CLAUDE.md." / "84K devs already know about X. You probably don't. Fix that."
 
-HOOK PATTERNS (use one):
-- Specific number: "34 minutes. That's how long it took to build a complete business site with Claude Code."
-- Bold claim: "You don't need to code to build a $5K/month AI business. Seriously."
-- Provocative question: "What if your entire dev workflow is 10x slower than it needs to be?"
-- Social proof: "The devs shipping fastest right now all have one thing in common."
-- Before/after: "Last week: 4 hours to build a landing page. This week: 12 minutes with Claude Code."
+THE STORY ARC METHOD:
+Write this thread like a mini-story. Each tweet should pull the reader into the next one. Build tension and curiosity, then deliver the payoff at the climax.
+
+Tweet 1 (THE HOOK - grab attention):
+- Open with a pattern interrupt: a specific number, bold claim, provocative question, or surprising stat
+- Create a curiosity gap so strong they MUST keep reading
+- End with a cliffhanger line that drags them into tweet 2 (e.g. "Here's how:" or "And it only took 3 steps.")
+- Include the article link: ${articleUrl}
+- This tweet gets 90% of impressions. Make it count.
+- Under 280 chars. Use ALL the space, not just one sentence.
+
+Tweet 2 (THE SETUP - build the world):
+- Set the scene. What problem exists? What were people doing before?
+- Make the reader feel the pain or see the gap
+- End by teasing the solution: "Then this video changed everything." or "Until someone figured out a better way."
+- Under 280 chars. Use ALL the space.
+
+Tweet 3 (THE CLIMAX - deliver the goods):
+- This is the payoff. Reveal the key insight, technique, or result from the video
+- Be specific and concrete. Numbers, steps, real outcomes.
+- Make it feel like insider knowledge they're getting for free
+- Under 280 chars. Use ALL the space.
+
+Tweet 4 (THE TWIST - add depth):
+- A second surprising detail, unexpected benefit, or "but wait there's more" moment
+- Something they wouldn't have guessed from the title alone
+- Keep the momentum going
+- Under 280 chars. Use ALL the space.
+
+Tweet 5 (THE CLOSER - land it):
+- Credit the creator: ${channelName}
+- CTA: "Follow @claudelists for daily Claude discoveries"
+- ALL hashtags go here and ONLY here: #Claude #AI #ClaudeCode
+- Under 280 chars
+
+CRITICAL RULES:
+- Return a JSON array of 4-5 tweet strings. MINIMUM 4 tweets. Never fewer.
+- Each tweet must use most of the 280 char limit. No single-sentence tweets. Fill the space with value.
+- DO NOT number tweets (no "1/", "2/4", etc.). Numbering kills engagement.
+- NEVER use em dashes
+- Do NOT use markdown formatting. Plain text only.
+- Use line breaks within tweets for readability
+- Hashtags ONLY in the last tweet
+- Together the tweets tell a story. Alone, each still delivers value.
 
 Resource info:
 - Title: ${analysis.title}
@@ -285,14 +277,7 @@ Resource info:
 - Category: ${analysis.category}
 - Quality score: ${analysis.ai_quality_score}/10
 
-RULES:
-- NEVER use em dashes
-- Every tweet must deliver a micro-insight even if they never click
-- Do NOT use markdown formatting (no **, no ##, no []()). Plain text only.
-- Use line breaks for readability. No walls of text.
-- Hashtags go in the LAST tweet only (threads) or at the end (single tweets)
-
-${format}`;
+Return ONLY a valid JSON array of strings. No markdown fences.`;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -506,10 +491,9 @@ async function run(options) {
     return;
   }
 
-  // Step 7: Tweet about it
-  console.log('\nGenerating tweet...');
-  const useThread = analysis.ai_quality_score >= 8;
-  const tweetContent = await generateTweet(analysis, article.slug, extracted, useThread);
+  // Step 7: Tweet about it (always thread for YouTube)
+  console.log('\nGenerating tweet thread...');
+  const tweetContent = await generateTweet(analysis, article.slug, extracted);
 
   // Download OG image
   let mediaId = null;
@@ -525,36 +509,27 @@ async function run(options) {
     console.warn('Posting without image...');
   }
 
-  let tweetUrl;
-  if (useThread && Array.isArray(tweetContent)) {
-    // Thread: first tweet gets OG image
-    console.log(`Posting thread (${tweetContent.length} tweets)...`);
-    const { userClient } = getClients();
+  // Always post as thread for YouTube videos
+  const tweets = Array.isArray(tweetContent) ? tweetContent : [tweetContent];
+  console.log(`Posting thread (${tweets.length} tweets)...`);
+  const { userClient } = getClients();
 
-    const firstPayload = { text: tweetContent[0] };
-    if (mediaId) firstPayload.media = { media_ids: [mediaId] };
-    const firstResult = await userClient.v2.tweet(firstPayload);
-    let lastTweetId = firstResult.data.id;
+  const firstPayload = { text: tweets[0] };
+  if (mediaId) firstPayload.media = { media_ids: [mediaId] };
+  const firstResult = await userClient.v2.tweet(firstPayload);
+  let lastTweetId = firstResult.data.id;
 
-    for (let i = 1; i < tweetContent.length; i++) {
-      const reply = await userClient.v2.tweet({
-        text: tweetContent[i],
-        reply: { in_reply_to_tweet_id: lastTweetId },
-      });
-      lastTweetId = reply.data.id;
-    }
-
-    const me = await userClient.v2.me();
-    tweetUrl = `https://x.com/${me.data.username}/status/${firstResult.data.id}`;
-    console.log(`Thread posted: ${tweetUrl}`);
-  } else {
-    // Single tweet
-    const text = Array.isArray(tweetContent) ? tweetContent[0] : tweetContent;
-    console.log(`Posting single tweet (${text.length} chars)...`);
-    const result = await postTweetWithMedia(text, mediaId ? [mediaId] : []);
-    tweetUrl = result.url;
-    console.log(`Tweet posted: ${tweetUrl}`);
+  for (let i = 1; i < tweets.length; i++) {
+    const reply = await userClient.v2.tweet({
+      text: tweets[i],
+      reply: { in_reply_to_tweet_id: lastTweetId },
+    });
+    lastTweetId = reply.data.id;
   }
+
+  const me = await userClient.v2.me();
+  const tweetUrl = `https://x.com/${me.data.username}/status/${firstResult.data.id}`;
+  console.log(`Thread posted: ${tweetUrl}`);
 
   // Update resource with tweet info
   await supabase
@@ -580,7 +555,7 @@ async function run(options) {
     tweet_id: tweetUrl.split('/status/')[1] || null,
     tweet_url: tweetUrl,
     resource_ids: [resource.id],
-    content: Array.isArray(tweetContent) ? tweetContent.join('\n---\n') : tweetContent,
+    content: tweets.join('\n---\n'),
     status: 'posted',
     posted_at: new Date().toISOString(),
   });
