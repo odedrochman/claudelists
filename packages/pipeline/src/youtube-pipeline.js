@@ -219,16 +219,47 @@ async function generateTweet(analysis, articleSlug, extracted, useThread) {
   const channelName = extracted.author || 'a creator';
 
   const format = useThread
-    ? `Return a JSON array of 2-3 tweet strings (a thread). Rules:
-- Tweet 1: Hook that makes the reader feel behind + the article link (${articleUrl}). Under 280 chars.
-- Tweet 2: A key insight, specific detail, or surprising takeaway from the video. Under 280 chars.
-- Tweet 3 (optional): CTA. "Tag @claudelists to get featured" + relevant hashtags (#Claude #AI #ClaudeCode). Under 280 chars.
+    ? `Return a JSON array of 3-5 tweet strings (a thread). Follow this THREAD STRUCTURE:
+
+Tweet 1 (THE HOOK):
+- Open with a pattern interrupt: a specific number, bold claim, provocative question, or surprising stat
+- Create a curiosity gap. The reader must feel they NEED to keep reading
+- End with a cliffhanger that pulls into tweet 2 (e.g. "Here's what they did differently:" or "The setup takes 3 steps.")
+- Include the article link: ${articleUrl}
+- Under 280 chars
+
+Tweet 2 (THE VALUE):
+- Deliver on the hook's promise with a specific insight, technique, or result from the video
+- One clear point per tweet. Don't cram multiple ideas.
+- End with a teaser for the next tweet ("But that's not even the best part." or "The real trick is in step 3.")
+- Under 280 chars
+
+Tweet 3 (THE DETAIL):
+- A second key takeaway, surprising detail, or practical tip from the video
+- Concrete and actionable. Give the reader something they can use immediately.
+- Under 280 chars
+
+Tweet 4 (optional, THE CLOSER):
+- Mention the creator by name
+- CTA: "Tag @claudelists to get featured"
+- Put ALL hashtags here (not in earlier tweets): #Claude #AI #ClaudeCode
+- Under 280 chars
+
+THREAD BEST PRACTICES:
+- Each tweet should stand alone as valuable, but together they tell a story
+- Use line breaks within tweets for readability, not walls of text
+- Vary sentence length: mix short punchy lines with slightly longer ones
+- The hook tweet gets 90% of the impressions. Spend most effort there.
+- DO NOT number tweets (1/4, 2/4). Numbering reduces engagement on X.
+
 Return ONLY a JSON array of strings. No markdown fences.`
     : `Return a single JSON string (one tweet, 400-800 chars for a long tweet). Rules:
-- Open with a hook that makes the reader feel behind (Persona G)
+- Open with a pattern interrupt hook: specific number, bold claim, or provocative question
+- Include a specific insight or result from the video (not just "check out this video")
 - Include the article link: ${articleUrl}
 - Mention the creator
-- End with a CTA and hashtags (#Claude #AI #ClaudeCode)
+- Use line breaks for readability
+- End with CTA and hashtags (#Claude #AI #ClaudeCode) at the very end
 - Tag @claudelists
 Return ONLY a JSON string. No markdown fences.`;
 
@@ -240,6 +271,13 @@ TONE (Persona G: Loss Aversion + Social Proof):
 - Short, punchy, slightly spicy. Not mean, but makes you feel behind
 - Examples: "The difference between 'Claude is okay' and 'Claude is incredible' is usually 5 lines in your CLAUDE.md." / "84K devs already know about X. You probably don't. Fix that."
 
+HOOK PATTERNS (use one):
+- Specific number: "34 minutes. That's how long it took to build a complete business site with Claude Code."
+- Bold claim: "You don't need to code to build a $5K/month AI business. Seriously."
+- Provocative question: "What if your entire dev workflow is 10x slower than it needs to be?"
+- Social proof: "The devs shipping fastest right now all have one thing in common."
+- Before/after: "Last week: 4 hours to build a landing page. This week: 12 minutes with Claude Code."
+
 Resource info:
 - Title: ${analysis.title}
 - Summary: ${analysis.summary}
@@ -250,8 +288,9 @@ Resource info:
 RULES:
 - NEVER use em dashes
 - Every tweet must deliver a micro-insight even if they never click
-- Include the article URL: ${articleUrl}
-- Do NOT use markdown formatting. Plain text only.
+- Do NOT use markdown formatting (no **, no ##, no []()). Plain text only.
+- Use line breaks for readability. No walls of text.
+- Hashtags go in the LAST tweet only (threads) or at the end (single tweets)
 
 ${format}`;
 
